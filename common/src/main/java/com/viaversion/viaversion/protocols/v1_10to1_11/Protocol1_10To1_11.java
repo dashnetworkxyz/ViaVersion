@@ -165,20 +165,6 @@ public class Protocol1_10To1_11 extends AbstractProtocol<ClientboundPackets1_9_3
                 map(Types.FLOAT, toOldByte);
             }
         });
-
-        registerServerbound(ServerboundPackets1_9_3.CHAT, new PacketHandlers() {
-            @Override
-            public void register() {
-                map(Types.STRING); // 0 - Message
-                handler(wrapper -> {
-                    // 100-character limit on older servers
-                    String msg = wrapper.get(Types.STRING, 0);
-                    if (msg.length() > 100) {
-                        wrapper.set(Types.STRING, 0, msg.substring(0, 100));
-                    }
-                });
-            }
-        });
     }
 
     private int getNewSoundId(int id) {
