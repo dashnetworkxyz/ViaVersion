@@ -71,6 +71,19 @@ public class RedstoneConnectionHandler implements ConnectionHandler {
         b |= connects(user, position, BlockFace.NORTH) << 2;
         b |= connects(user, position, BlockFace.SOUTH) << 4;
         b |= connects(user, position, BlockFace.WEST) << 6;
+
+        if (b == 1 || b == 2)
+            b |= 64;
+        else if (b == 4 || b == 8)
+            b |= 16;
+        else if (b == 16 || b == 32)
+            b |= 4;
+        else if (b == 64 || b == 128)
+            b |= 1;
+
+        if (b == 0)
+            b |= 85;
+
         b |= POWER_MAPPINGS.get(blockState) << 8;
         return CONNECTED_BLOCK_STATES.getOrDefault(b, blockState);
     }
