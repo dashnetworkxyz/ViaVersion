@@ -20,25 +20,32 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.viaversion.viaversion.util;
+package com.viaversion.viaversion.api.data.item;
 
-import com.viaversion.viaversion.api.platform.ViaPlatform;
+import java.util.List;
 
-public final class VersionInfo {
+/**
+ * Used for converting items to hashed items and caching them for later use during serverbound packets.
+ * <p>
+ * Most of this stays in the internal module given non-permanent, imperfect caching as well as missing converters.
+ */
+public interface ItemHasher {
 
     /**
-     * Plugin version.
+     * Returns whether this connection is currently processing a clientbound player inventory packet.
+     * <p>
+     * Used for checking when it is necessary to track/process item data hashes.
      *
-     * @see ViaPlatform#getPluginVersion()
+     * @return true if processing a clientbound inventory packet, false otherwise
      */
-    public static final String VERSION = "{{ version }}";
-    private static final String IMPLEMENTATION_VERSION = "{{ impl_version }}";
+    boolean isProcessingClientboundInventoryPacket();
 
-    public static String getVersion() {
-        return VERSION;
-    }
+    void setProcessingClientboundInventoryPacket(boolean processingClientboundInventoryPacket);
 
-    public static String getImplementationVersion() {
-        return IMPLEMENTATION_VERSION;
-    }
+    /**
+     * Sets the enchantment registry for this connection.
+     *
+     * @param enchantments list of enchantment identifiers
+     */
+    void setEnchantments(List<String> enchantments);
 }

@@ -23,6 +23,7 @@ import com.viaversion.viaversion.api.connection.UserConnection;
 import com.viaversion.viaversion.api.data.FullMappings;
 import com.viaversion.viaversion.api.data.MappingData;
 import com.viaversion.viaversion.api.data.Mappings;
+import com.viaversion.viaversion.api.data.item.ItemHasher;
 import com.viaversion.viaversion.api.minecraft.item.HashedItem;
 import com.viaversion.viaversion.api.minecraft.item.Item;
 import com.viaversion.viaversion.api.protocol.Protocol;
@@ -34,6 +35,7 @@ import com.viaversion.viaversion.api.rewriter.ComponentRewriter;
 import com.viaversion.viaversion.api.rewriter.RewriterBase;
 import com.viaversion.viaversion.api.type.Type;
 import com.viaversion.viaversion.api.type.Types;
+import com.viaversion.viaversion.data.item.ItemHasherBase;
 import com.viaversion.viaversion.util.Limit;
 import com.viaversion.viaversion.util.Rewritable;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
@@ -93,6 +95,35 @@ public class ItemRewriter<C extends ClientboundPacketType, S extends Serverbound
         return item;
     }
 
+    @Override
+    public HashedItem handleHashedItem(final UserConnection connection, final HashedItem item) {
+        final MappingData mappingData = protocol.getMappingData();
+        if (mappingData == null) {
+            return item;
+        }
+
+        final FullMappings dataComponentMappings = mappingData.getDataComponentSerializerMappings();
+        if (dataComponentMappings != null) {
+            updateHashedItemDataComponentIds(item, dataComponentMappings.inverse());
+
+            final int customDataId = dataComponentMappings.id("custom_data");
+            if (item.dataHashesById().containsKey(customDataId)) {
+                // Use the original hashed item if we can find it in the cache
+                final int customDataHash = item.dataHashesById().get(customDataId);
+                final ItemHasherBase itemHasher = itemHasher(connection);
+                final HashedItem originalHashedItem = itemHasher.originalHashedItem(customDataHash, item);
+                if (originalHashedItem != null) {
+                    return originalHashedItem;
+                }
+            }
+        }
+
+        if (mappingData.getItemMappings() != null) {
+            item.setIdentifier(mappingData.getOldItemId(item.identifier()));
+        }
+        return item;
+    }
+
     public void registerSetContent(C packetType) {
         protocol.registerClientbound(packetType, wrapper -> {
             wrapper.passthrough(Types.UNSIGNED_BYTE); // Container id
@@ -117,10 +148,10 @@ public class ItemRewriter<C extends ClientboundPacketType, S extends Serverbound
             wrapper.passthrough(Types.VAR_INT); // State id
             Item[] items = wrapper.passthroughAndMap(itemArrayType, mappedItemArrayType);
             for (int i = 0; i < items.length; i++) {
-                items[i] = handleItemToClient(wrapper.user(), items[i]);
+                items[i] = handleItemToClientAndTrackHash(wrapper.user(), items[i]);
             }
 
-            passthroughClientboundItem(wrapper);
+            passthroughClientboundItemAndTrackHash(wrapper);
         });
     }
 
@@ -163,7 +194,7 @@ public class ItemRewriter<C extends ClientboundPacketType, S extends Serverbound
             wrapper.passthrough(containerIdType); // Container id
             wrapper.passthrough(Types.VAR_INT); // State id
             wrapper.passthrough(Types.SHORT); // Slot id
-            passthroughClientboundItem(wrapper);
+            passthroughClientboundItemAndTrackHash(wrapper);
         });
     }
 
@@ -268,7 +299,7 @@ public class ItemRewriter<C extends ClientboundPacketType, S extends Serverbound
     public void registerSetPlayerInventory(C packetType) {
         protocol.registerClientbound(packetType, wrapper -> {
             wrapper.passthrough(Types.VAR_INT); // Slot
-            passthroughClientboundItem(wrapper);
+            passthroughClientboundItemAndTrackHash(wrapper);
         });
     }
 
@@ -475,6 +506,10 @@ public class ItemRewriter<C extends ClientboundPacketType, S extends Serverbound
         });
     }
 
+    public void registerSetCursorItem(C packetType) {
+        protocol.registerClientbound(packetType, this::passthroughClientboundItemAndTrackHash);
+    }
+
     // Pre 1.21 for enchantments
     public void registerContainerSetData(C packetType) {
         protocol.registerClientbound(packetType, wrapper -> {
@@ -493,26 +528,47 @@ public class ItemRewriter<C extends ClientboundPacketType, S extends Serverbound
         });
     }
 
+    protected @Nullable Item handleItemToClientAndTrackHash(final UserConnection connection, @Nullable Item item) {
+        final ItemHasher itemHasher = itemHasher(connection);
+        if (itemHasher == null) {
+            return handleItemToClient(connection, item);
+        }
+
+        itemHasher.setProcessingClientboundInventoryPacket(true);
+        try {
+            return this.handleItemToClient(connection, item);
+        } finally {
+            itemHasher.setProcessingClientboundInventoryPacket(false);
+        }
+    }
+
+    protected void passthroughClientboundItemAndTrackHash(final PacketWrapper wrapper) {
+        final ItemHasher itemHasher = itemHasher(wrapper.user());
+        if (itemHasher == null) {
+            passthroughClientboundItem(wrapper);
+            return;
+        }
+
+        itemHasher.setProcessingClientboundInventoryPacket(true);
+        try {
+            this.passthroughClientboundItem(wrapper);
+        } finally {
+            itemHasher.setProcessingClientboundInventoryPacket(false);
+        }
+    }
+
     protected void passthroughClientboundItem(final PacketWrapper wrapper) {
         final Item item = handleItemToClient(wrapper.user(), wrapper.read(itemType));
         wrapper.write(mappedItemType, item);
     }
 
     protected void passthroughHashedItem(final PacketWrapper wrapper) {
-        final HashedItem item = wrapper.passthrough(Types.HASHED_ITEM);
-        final MappingData mappingData = protocol.getMappingData();
-        if (mappingData == null) {
-            return;
-        }
+        final HashedItem item = handleHashedItem(wrapper.user(), wrapper.read(Types.HASHED_ITEM));
+        wrapper.write(Types.HASHED_ITEM, item);
+    }
 
-        if (mappingData.getItemMappings() != null) {
-            item.setIdentifier(mappingData.getOldItemId(item.identifier()));
-        }
-
-        final FullMappings dataComponentMappings = protocol.getMappingData().getDataComponentSerializerMappings();
-        if (dataComponentMappings != null) {
-            updateHashedItemDataComponentIds(item, dataComponentMappings.inverse());
-        }
+    protected <T extends ItemHasher> @Nullable T itemHasher(final UserConnection connection) {
+        return connection.getItemHasher(protocol.getClass());
     }
 
     protected void updateHashedItemDataComponentIds(final HashedItem item, final FullMappings mappings) {
@@ -524,9 +580,10 @@ public class ItemRewriter<C extends ClientboundPacketType, S extends Serverbound
                     continue;
                 }
 
-                // Let's hope the hash didn't change...
                 final int hash = addedData.remove(id);
-                addedData.put(mappedId, hash);
+                if (mappedId != -1) {
+                    addedData.put(mappedId, hash);
+                }
             }
         }
 
@@ -539,7 +596,9 @@ public class ItemRewriter<C extends ClientboundPacketType, S extends Serverbound
                 }
 
                 removedData.remove(id);
-                removedData.add(mappedId);
+                if (mappedId != -1) {
+                    removedData.add(mappedId);
+                }
             }
         }
     }
