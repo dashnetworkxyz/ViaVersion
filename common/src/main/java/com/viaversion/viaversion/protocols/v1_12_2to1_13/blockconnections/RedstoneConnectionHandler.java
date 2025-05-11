@@ -81,9 +81,6 @@ public class RedstoneConnectionHandler implements ConnectionHandler {
         else if (b == 64 || b == 128)
             b |= 1;
 
-        if (b == 0)
-            b |= 85;
-
         b |= POWER_MAPPINGS.get(blockState) << 8;
         return CONNECTED_BLOCK_STATES.getOrDefault(b, blockState);
     }
