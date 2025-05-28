@@ -184,8 +184,8 @@ public final class StructuredDataConverter {
         register(StructuredDataKey.WRITABLE_BOOK_CONTENT, (data, tag) -> {
             final ListTag<StringTag> pages = new ListTag<>(StringTag.class);
             final CompoundTag filteredPages = new CompoundTag();
-            for (int i = 0; i < data.length; i++) {
-                final FilterableString page = data[i];
+            for (int i = 0; i < data.pages().length; i++) {
+                final FilterableString page = data.pages()[i];
                 pages.add(new StringTag(page.raw()));
                 if (page.filtered() != null) {
                     filteredPages.putString(Integer.toString(i), page.filtered());
@@ -319,7 +319,7 @@ public final class StructuredDataConverter {
             getBlockEntityTag(tag, "beehive").put("Bees", bees);
         });
         register(StructuredDataKey.LOCK, (data, tag) -> getBlockEntityTag(tag).put("Lock", data));
-        register(StructuredDataKey.NOTE_BLOCK_SOUND, (data, tag) -> getBlockEntityTag(tag, "player_head").putString("note_block_sound", data));
+        register(StructuredDataKey.NOTE_BLOCK_SOUND, (data, tag) -> getBlockEntityTag(tag, "player_head").putString("note_block_sound", data.original()));
         register(StructuredDataKey.POT_DECORATIONS, (data, tag) -> {
             IntArrayTag originalSherds = null;
 
@@ -341,7 +341,6 @@ public final class StructuredDataConverter {
             }
             getBlockEntityTag(tag, "decorated_pot").put("sherds", sherds);
         });
-        register(StructuredDataKey.CREATIVE_SLOT_LOCK, (data, tag) -> tag.put("CustomCreativeLock", new CompoundTag()));
         register(StructuredDataKey.DEBUG_STICK_STATE, (data, tag) -> tag.put("DebugProperty", data));
         register(StructuredDataKey.RECIPES, (data, tag) -> tag.put("Recipes", data));
         register(StructuredDataKey.ENTITY_DATA, (data, tag) -> tag.put("EntityTag", data));
@@ -503,16 +502,6 @@ public final class StructuredDataConverter {
         register(StructuredDataKey.V1_20_5.container, (connection, data, tag) -> convertItemList(connection, data, getBlockEntityTag(tag), "Items"));
         register(StructuredDataKey.CAN_PLACE_ON1_20_5, (data, tag) -> convertBlockPredicates(tag, data, "CanPlaceOn", HIDE_CAN_PLACE_ON));
         register(StructuredDataKey.CAN_BREAK1_20_5, (data, tag) -> convertBlockPredicates(tag, data, "CanDestroy", HIDE_CAN_DESTROY));
-        register(StructuredDataKey.MAP_POST_PROCESSING, (data, tag) -> {
-            if (data == null) {
-                return;
-            }
-            if (data == 0) { // Lock
-                tag.putBoolean("map_to_lock", true);
-            } else if (data == 1) { // Scale
-                tag.putInt("map_scale_direction", 1);
-            }
-        });
         register(StructuredDataKey.TRIM1_20_5, (connection, data, tag) -> {
             final CompoundTag trimTag = new CompoundTag();
             final ArmorTrimStorage trimStorage = connection.get(ArmorTrimStorage.class);

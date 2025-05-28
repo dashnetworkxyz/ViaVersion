@@ -73,6 +73,7 @@ import com.viaversion.viaversion.api.minecraft.item.data.SuspiciousStewEffect;
 import com.viaversion.viaversion.api.minecraft.item.data.ToolProperties;
 import com.viaversion.viaversion.api.minecraft.item.data.ToolRule;
 import com.viaversion.viaversion.api.minecraft.item.data.Unbreakable;
+import com.viaversion.viaversion.api.minecraft.item.data.WritableBook;
 import com.viaversion.viaversion.api.minecraft.item.data.WrittenBook;
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
 import com.viaversion.viaversion.api.type.Types;
@@ -593,11 +594,6 @@ public final class BlockItemPacketRewriter1_20_5 extends ItemRewriter<Clientboun
 
         updateProfile(data, tag.get("SkullOwner"));
 
-        final CompoundTag customCreativeLock = tag.getCompoundTag("CustomCreativeLock");
-        if (customCreativeLock != null) {
-            data.set(StructuredDataKey.CREATIVE_SLOT_LOCK);
-        }
-
         final ListTag<StringTag> canPlaceOnTag = tag.getListTag("CanPlaceOn", StringTag.class);
         if (canPlaceOnTag != null) {
             data.set(StructuredDataKey.CAN_PLACE_ON1_20_5, updateBlockPredicates(canPlaceOnTag, (hideFlagsValue & StructuredDataConverter.HIDE_CAN_PLACE_ON) == 0));
@@ -606,16 +602,6 @@ public final class BlockItemPacketRewriter1_20_5 extends ItemRewriter<Clientboun
         final ListTag<StringTag> canDestroyTag = tag.getListTag("CanDestroy", StringTag.class);
         if (canDestroyTag != null) {
             data.set(StructuredDataKey.CAN_BREAK1_20_5, updateBlockPredicates(canDestroyTag, (hideFlagsValue & StructuredDataConverter.HIDE_CAN_DESTROY) == 0));
-        }
-
-        final IntTag mapScaleDirectionTag = tag.getIntTag("map_scale_direction");
-        if (mapScaleDirectionTag != null) {
-            data.set(StructuredDataKey.MAP_POST_PROCESSING, 1); // Scale
-        } else {
-            final NumberTag mapToLockTag = tag.getNumberTag("map_to_lock");
-            if (mapToLockTag != null) {
-                data.set(StructuredDataKey.MAP_POST_PROCESSING, 0); // Lock
-            }
         }
 
         // Only for VB, but kept here for simplicity; In VV we back up the original tag and later restore it, in VB
@@ -1164,7 +1150,7 @@ public final class BlockItemPacketRewriter1_20_5 extends ItemRewriter<Clientboun
                 break;
             }
         }
-        data.set(StructuredDataKey.WRITABLE_BOOK_CONTENT, pages.toArray(new FilterableString[0]));
+        data.set(StructuredDataKey.WRITABLE_BOOK_CONTENT, new WritableBook(pages.toArray(new FilterableString[0])));
     }
 
     private void updateWrittenBookPages(final UserConnection connection, final StructuredDataContainer data, final CompoundTag tag) {
@@ -1483,7 +1469,7 @@ public final class BlockItemPacketRewriter1_20_5 extends ItemRewriter<Clientboun
 
             final StringTag noteBlockSoundTag = tag.getStringTag("note_block_sound");
             if (noteBlockSoundTag != null) {
-                data.set(StructuredDataKey.NOTE_BLOCK_SOUND, noteBlockSoundTag.getValue());
+                data.set(StructuredDataKey.NOTE_BLOCK_SOUND, Key.of(noteBlockSoundTag.getValue()));
                 addBlockEntityId(tag, "player_head");
             }
 
