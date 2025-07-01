@@ -95,10 +95,10 @@ public record StructuredDataKey<T>(String identifier, Type<T> type) {
     public static final StructuredDataKey<Integer> DAMAGE = new StructuredDataKey<>("damage", Types.VAR_INT);
     public static final StructuredDataKey<Unbreakable> UNBREAKABLE1_20_5 = new StructuredDataKey<>("unbreakable", Unbreakable.TYPE);
     public static final StructuredDataKey<Unit> UNBREAKABLE1_21_5 = new StructuredDataKey<>("unbreakable", Types.EMPTY);
-    public static final StructuredDataKey<Tag> CUSTOM_NAME = new StructuredDataKey<>("custom_name", Types.TAG);
-    public static final StructuredDataKey<Tag> ITEM_NAME = new StructuredDataKey<>("item_name", Types.TAG);
+    public static final StructuredDataKey<Tag> CUSTOM_NAME = new StructuredDataKey<>("custom_name", Types.TEXT_COMPONENT_TAG);
+    public static final StructuredDataKey<Tag> ITEM_NAME = new StructuredDataKey<>("item_name", Types.TEXT_COMPONENT_TAG);
     public static final StructuredDataKey<Key> ITEM_MODEL = new StructuredDataKey<>("item_model", Types.RESOURCE_LOCATION);
-    public static final StructuredDataKey<Tag[]> LORE = new StructuredDataKey<>("lore", new ArrayType<>(Types.TAG, 256));
+    public static final StructuredDataKey<Tag[]> LORE = new StructuredDataKey<>("lore", new ArrayType<>(Types.TEXT_COMPONENT_TAG, 256));
     public static final StructuredDataKey<Integer> RARITY = new StructuredDataKey<>("rarity", EnumTypes.RARITY);
     public static final StructuredDataKey<Enchantments> ENCHANTMENTS1_20_5 = new StructuredDataKey<>("enchantments", Enchantments.TYPE1_20_5);
     public static final StructuredDataKey<Enchantments> ENCHANTMENTS1_21_5 = new StructuredDataKey<>("enchantments", Enchantments.TYPE1_21_5);
@@ -108,6 +108,7 @@ public record StructuredDataKey<T>(String identifier, Type<T> type) {
     public static final StructuredDataKey<AttributeModifiers1_20_5> ATTRIBUTE_MODIFIERS1_20_5 = new StructuredDataKey<>("attribute_modifiers", AttributeModifiers1_20_5.TYPE);
     public static final StructuredDataKey<AttributeModifiers1_21> ATTRIBUTE_MODIFIERS1_21 = new StructuredDataKey<>("attribute_modifiers", AttributeModifiers1_21.TYPE1_21);
     public static final StructuredDataKey<AttributeModifiers1_21> ATTRIBUTE_MODIFIERS1_21_5 = new StructuredDataKey<>("attribute_modifiers", AttributeModifiers1_21.TYPE1_21_5);
+    public static final StructuredDataKey<AttributeModifiers1_21> ATTRIBUTE_MODIFIERS1_21_6 = new StructuredDataKey<>("attribute_modifiers", AttributeModifiers1_21.TYPE1_21_6);
     public static final StructuredDataKey<Integer> CUSTOM_MODEL_DATA1_20_5 = new StructuredDataKey<>("custom_model_data", Types.VAR_INT);
     public static final StructuredDataKey<CustomModelData1_21_4> CUSTOM_MODEL_DATA1_21_4 = new StructuredDataKey<>("custom_model_data", CustomModelData1_21_4.TYPE);
     public static final StructuredDataKey<Unit> HIDE_ADDITIONAL_TOOLTIP = new StructuredDataKey<>("hide_additional_tooltip", Types.EMPTY);
@@ -130,6 +131,7 @@ public record StructuredDataKey<T>(String identifier, Type<T> type) {
     public static final StructuredDataKey<Enchantable> ENCHANTABLE = new StructuredDataKey<>("enchantable", Enchantable.TYPE);
     public static final StructuredDataKey<Equippable> EQUIPPABLE1_21_2 = new StructuredDataKey<>("equippable", Equippable.TYPE1_21_2);
     public static final StructuredDataKey<Equippable> EQUIPPABLE1_21_5 = new StructuredDataKey<>("equippable", Equippable.TYPE1_21_5);
+    public static final StructuredDataKey<Equippable> EQUIPPABLE1_21_6 = new StructuredDataKey<>("equippable", Equippable.TYPE1_21_6);
     public static final StructuredDataKey<HolderSet> REPAIRABLE = new StructuredDataKey<>("repairable", Types.HOLDER_SET);
     public static final StructuredDataKey<Unit> GLIDER = new StructuredDataKey<>("glider", Types.EMPTY);
     public static final StructuredDataKey<Key> TOOLTIP_STYLE = new StructuredDataKey<>("tooltip_style", Types.RESOURCE_LOCATION);
@@ -211,6 +213,7 @@ public record StructuredDataKey<T>(String identifier, Type<T> type) {
     public static final StructuredDataKeys1_21_2 V1_21_2 = VersionedTypes.V1_21_2.structuredDataKeys();
     public static final StructuredDataKeys1_21_2 V1_21_4 = VersionedTypes.V1_21_4.structuredDataKeys();
     public static final StructuredDataKeys1_21_5 V1_21_5 = VersionedTypes.V1_21_5.structuredDataKeys();
+    public static final StructuredDataKeys1_21_5 V1_21_6 = VersionedTypes.V1_21_6.structuredDataKeys();
 
     @Override
     public String toString() {

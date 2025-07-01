@@ -5,7 +5,7 @@ metadata.format.version = "1.1"
 gson = "2.12.1"
 fastutil = "8.5.15"
 vianbt = "5.1.0"
-mcstructs = "5-3.1.0-SNAPSHOT"
+mcstructs = "5-3.1.1-SNAPSHOT"
 
 # Common provided
 netty = "4.0.20.Final"
@@ -20,7 +20,7 @@ checkerQual = "3.49.1"
 paper = "1.20.4-R0.1-SNAPSHOT"
 legacyBukkit = "1.8.8-R0.1-SNAPSHOT"
 velocity = "3.1.1"
-viaProxy = "3.4.2-SNAPSHOT"
+viaProxy = "3.4.3-SNAPSHOT"
 
 [libraries]
 
