@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,10 +39,10 @@ import com.viaversion.viaversion.protocols.v1_21_5to1_21_6.packet.ServerboundPac
 import com.viaversion.viaversion.protocols.v1_21_6to1_21_7.rewriter.BlockItemPacketRewriter1_21_7;
 import com.viaversion.viaversion.protocols.v1_21_6to1_21_7.rewriter.EntityPacketRewriter1_21_7;
 import com.viaversion.viaversion.rewriter.ParticleRewriter;
+import com.viaversion.viaversion.rewriter.RegistryDataRewriter;
 import com.viaversion.viaversion.rewriter.SoundRewriter;
 import com.viaversion.viaversion.rewriter.StatisticsRewriter;
 import com.viaversion.viaversion.rewriter.TagRewriter;
-import com.viaversion.viaversion.util.SerializerVersion;
 
 import static com.viaversion.viaversion.util.ProtocolUtil.packetTypeMap;
 
@@ -53,6 +53,7 @@ public final class Protocol1_21_6To1_21_7 extends AbstractProtocol<ClientboundPa
     private final BlockItemPacketRewriter1_21_7 itemRewriter = new BlockItemPacketRewriter1_21_7(this);
     private final ParticleRewriter<ClientboundPacket1_21_6> particleRewriter = new ParticleRewriter<>(this);
     private final TagRewriter<ClientboundPacket1_21_6> tagRewriter = new TagRewriter<>(this);
+    private final RegistryDataRewriter registryDataRewriter = new RegistryDataRewriter(this);
 
     public Protocol1_21_6To1_21_7() {
         super(ClientboundPacket1_21_6.class, ClientboundPacket1_21_6.class, ServerboundPacket1_21_6.class, ServerboundPacket1_21_6.class);
@@ -61,6 +62,8 @@ public final class Protocol1_21_6To1_21_7 extends AbstractProtocol<ClientboundPa
     @Override
     protected void registerPackets() {
         super.registerPackets();
+
+        registerClientbound(ClientboundConfigurationPackets1_21_6.REGISTRY_DATA, registryDataRewriter::handle);
 
         tagRewriter.registerGeneric(ClientboundPackets1_21_6.UPDATE_TAGS);
         tagRewriter.registerGeneric(ClientboundConfigurationPackets1_21_6.UPDATE_TAGS);
@@ -78,7 +81,7 @@ public final class Protocol1_21_6To1_21_7 extends AbstractProtocol<ClientboundPa
     @Override
     public void init(final UserConnection connection) {
         addEntityTracker(connection, new EntityTrackerBase(connection, EntityTypes1_21_6.PLAYER));
-        addItemHasher(connection, new ItemHasherBase(this, connection, SerializerVersion.V1_21_6, SerializerVersion.V1_21_6));
+        addItemHasher(connection, new ItemHasherBase(this, connection));
     }
 
     @Override
@@ -109,6 +112,11 @@ public final class Protocol1_21_6To1_21_7 extends AbstractProtocol<ClientboundPa
     @Override
     public BlockItemPacketRewriter1_21_7 getItemRewriter() {
         return itemRewriter;
+    }
+
+    @Override
+    public RegistryDataRewriter getRegistryDataRewriter() {
+        return registryDataRewriter;
     }
 
     @Override

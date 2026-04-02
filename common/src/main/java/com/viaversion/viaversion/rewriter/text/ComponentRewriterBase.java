@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -100,6 +100,65 @@ public abstract class ComponentRewriterBase<C extends ClientboundPacketType> imp
         });
     }
 
+    public void registerSetObjective(final C packetType) {
+        protocol.registerClientbound(packetType, wrapper -> {
+            wrapper.passthrough(Types.STRING); // Objective Name
+            final byte action = wrapper.passthrough(Types.BYTE);
+            if (action == 0 || action == 2) {
+                passthroughAndProcess(wrapper); // Display Name
+            }
+        });
+    }
+
+    public void registerSetScore1_20_3(final C packetType) {
+        protocol.registerClientbound(packetType, wrapper -> {
+            wrapper.passthrough(Types.STRING); // Owner
+            wrapper.passthrough(Types.STRING); // Objective name
+            wrapper.passthrough(Types.VAR_INT); // Score
+            passthroughAndProcessOptional(wrapper);
+            if (wrapper.passthrough(Types.BOOLEAN)) {
+                final int numberFormatType = wrapper.passthrough(Types.VAR_INT);
+                if (numberFormatType == 1) { // styled
+                    passthroughAndProcess(wrapper); // Only contains the style
+                } else if (numberFormatType == 2) { // fixed
+                    passthroughAndProcess(wrapper);
+                }
+            }
+        });
+    }
+
+    public void registerSetPlayerTeam1_13(final C packetType) {
+        protocol.registerClientbound(packetType, wrapper -> {
+            wrapper.passthrough(Types.STRING); // Team Name
+            final byte action = wrapper.passthrough(Types.BYTE); // Mode
+            if (action == 0 || action == 2) {
+                passthroughAndProcess(wrapper); // Display name
+                wrapper.passthrough(Types.BYTE); // Flags
+                wrapper.passthrough(Types.STRING); // Nametag visibility
+                wrapper.passthrough(Types.STRING); // Collision rule
+                wrapper.passthrough(Types.VAR_INT); // Color
+                passthroughAndProcess(wrapper); // Prefix
+                passthroughAndProcess(wrapper); // Suffix
+            }
+        });
+    }
+
+    public void registerSetPlayerTeam1_21_5(final C packetType) {
+        protocol.registerClientbound(packetType, wrapper -> {
+            wrapper.passthrough(Types.STRING); // Team Name
+            final byte action = wrapper.passthrough(Types.BYTE); // Mode
+            if (action == 0 || action == 2) {
+                passthroughAndProcess(wrapper); // Display name
+                wrapper.passthrough(Types.BYTE); // Flags
+                wrapper.passthrough(Types.VAR_INT); // Nametag visibility
+                wrapper.passthrough(Types.VAR_INT); // Collision rule
+                wrapper.passthrough(Types.VAR_INT); // Color
+                passthroughAndProcess(wrapper); // Prefix
+                passthroughAndProcess(wrapper); // Suffix
+            }
+        });
+    }
+
     public void registerPlayerInfoUpdate1_21_4(final C packetType) {
         protocol.registerClientbound(packetType, wrapper -> {
             final BitSet actions = wrapper.passthrough(Types.PROFILE_ACTIONS_ENUM1_21_4);
@@ -128,7 +187,7 @@ public abstract class ComponentRewriterBase<C extends ClientboundPacketType> imp
                     wrapper.passthrough(Types.VAR_INT); // Latency
                 }
 
-                processTag(wrapper.user(), wrapper.passthrough(Types.OPTIONAL_TAG));
+                processTag(wrapper.user(), wrapper.passthrough(Types.TRUSTED_OPTIONAL_TAG));
 
                 if (actions.get(6)) {
                     wrapper.passthrough(Types.VAR_INT); // List order
@@ -159,14 +218,14 @@ public abstract class ComponentRewriterBase<C extends ClientboundPacketType> imp
     public void passthroughAndProcess(final PacketWrapper wrapper) {
         switch (type) {
             case JSON -> processText(wrapper.user(), wrapper.passthrough(Types.COMPONENT));
-            case NBT -> processTag(wrapper.user(), wrapper.passthrough(Types.TAG));
+            case NBT -> processTag(wrapper.user(), wrapper.passthrough(Types.TRUSTED_TAG));
         }
     }
 
     public void passthroughAndProcessOptional(final PacketWrapper wrapper) {
         switch (type) {
             case JSON -> processText(wrapper.user(), wrapper.passthrough(Types.OPTIONAL_COMPONENT));
-            case NBT -> processTag(wrapper.user(), wrapper.passthrough(Types.OPTIONAL_TAG));
+            case NBT -> processTag(wrapper.user(), wrapper.passthrough(Types.TRUSTED_OPTIONAL_TAG));
         }
     }
 
@@ -285,7 +344,8 @@ public abstract class ComponentRewriterBase<C extends ClientboundPacketType> imp
 
     protected abstract void handleHoverEvent(final UserConnection connection, final CompoundTag hoverEventTag);
 
-    protected final void handleShowItem(final UserConnection connection, final CompoundTag itemTag) {
+    @Override
+    public final void handleShowItem(final UserConnection connection, final CompoundTag itemTag) {
         handleShowItem(connection, itemTag, itemTag.getCompoundTag("components"));
     }
 
@@ -300,7 +360,12 @@ public abstract class ComponentRewriterBase<C extends ClientboundPacketType> imp
             return;
         }
 
+        handleNestedComponent(connection, TagUtil.getNamespacedTag(componentsTag, "item_name"));
+        handleNestedComponent(connection, TagUtil.getNamespacedTag(componentsTag, "custom_name"));
+        handleLore(connection, componentsTag);
         handleWrittenBookContents(connection, componentsTag);
+
+        handleAttributeModifiers(componentsTag);
         handleContainerContents(connection, componentsTag);
         handleItemArrayContents(connection, componentsTag, "bundle_contents");
         handleItemArrayContents(connection, componentsTag, "charged_projectiles");
@@ -308,6 +373,33 @@ public abstract class ComponentRewriterBase<C extends ClientboundPacketType> imp
         if (useRemainder != null) {
             handleShowItem(connection, useRemainder);
         }
+
+        removeDataComponents(componentsTag, "lock", "debug_stick_state");
+    }
+
+    protected void handleAttributeModifiers(final CompoundTag tag) {
+        if (protocol.getMappingData().getAttributeMappings() == null) {
+            return;
+        }
+
+        final ListTag<CompoundTag> attributeModifiers = TagUtil.getNamespacedCompoundTagList(tag, "attribute_modifiers");
+        if (attributeModifiers == null) {
+            return;
+        }
+
+        attributeModifiers.getValue().removeIf(attributeTag -> {
+            final StringTag typeTag = attributeTag.getStringTag("type");
+            if (typeTag == null) {
+                return false;
+            }
+
+            final String mappedId = protocol.getMappingData().getAttributeMappings().mappedIdentifier(typeTag.getValue());
+            if (mappedId != null) {
+                typeTag.setValue(mappedId);
+                return false;
+            }
+            return true;
+        });
     }
 
     protected void handleContainerContents(final UserConnection connection, final CompoundTag tag) {
@@ -318,6 +410,17 @@ public abstract class ComponentRewriterBase<C extends ClientboundPacketType> imp
 
         for (final CompoundTag entryTag : container) {
             handleShowItem(connection, entryTag.getCompoundTag("item"));
+        }
+    }
+
+    protected void handleLore(final UserConnection connection, final CompoundTag tag) {
+        final ListTag<? extends Tag> loreTag = TagUtil.getNamespacedTagList(tag, "lore");
+        if (loreTag == null) {
+            return;
+        }
+
+        for (final Tag lore : loreTag) {
+            handleNestedComponent(connection, lore);
         }
     }
 
@@ -333,8 +436,8 @@ public abstract class ComponentRewriterBase<C extends ClientboundPacketType> imp
         }
 
         for (final CompoundTag compoundTag : pagesTag) {
-            handleNestedComponent(connection, compoundTag, "raw");
-            handleNestedComponent(connection, compoundTag, "filtered");
+            handleNestedComponent(connection, compoundTag.get("raw"));
+            handleNestedComponent(connection, compoundTag.get("filtered"));
         }
     }
 
@@ -375,7 +478,13 @@ public abstract class ComponentRewriterBase<C extends ClientboundPacketType> imp
             || tag.remove("!" + Key.stripMinecraftNamespace(key)) != null;
     }
 
-    protected abstract void handleNestedComponent(UserConnection connection, CompoundTag parent, String key);
+    /**
+     * Rewrites a nested text component. Stored as a regular tag in 1.21.5+, but is nested via snbt in string components before that.
+     *
+     * @param connection user connection
+     * @param tag        nested tag to handle
+     */
+    protected abstract void handleNestedComponent(UserConnection connection, @Nullable Tag tag);
 
     public enum ReadType {
 

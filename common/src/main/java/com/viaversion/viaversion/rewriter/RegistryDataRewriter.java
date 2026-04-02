@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,14 +23,16 @@ import com.viaversion.nbt.tag.StringTag;
 import com.viaversion.nbt.tag.Tag;
 import com.viaversion.viaversion.api.connection.UserConnection;
 import com.viaversion.viaversion.api.data.FullMappings;
+import com.viaversion.viaversion.api.data.MappingData;
 import com.viaversion.viaversion.api.data.entity.DimensionData;
-import com.viaversion.viaversion.api.data.item.ItemHasher;
 import com.viaversion.viaversion.api.minecraft.RegistryEntry;
 import com.viaversion.viaversion.api.protocol.Protocol;
 import com.viaversion.viaversion.api.protocol.packet.PacketWrapper;
+import com.viaversion.viaversion.api.rewriter.ComponentRewriter;
 import com.viaversion.viaversion.api.type.Types;
 import com.viaversion.viaversion.data.entity.DimensionDataImpl;
 import com.viaversion.viaversion.util.Key;
+import com.viaversion.viaversion.util.KeyMappings;
 import com.viaversion.viaversion.util.TagUtil;
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import java.util.ArrayList;
@@ -42,15 +44,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class RegistryDataRewriter {
+public class RegistryDataRewriter implements com.viaversion.viaversion.api.rewriter.RegistryDataRewriter {
     private final Map<String, BiConsumer<String, CompoundTag>> registryEntryHandlers = new Object2ObjectArrayMap<>();
     private final Map<String, Consumer<CompoundTag>> enchantmentEffectHandlers = new Object2ObjectArrayMap<>(); // for nested enchantment data
     private final Map<String, List<RegistryEntry>> toAdd = new Object2ObjectArrayMap<>();
     private final Set<String> toRemove = new HashSet<>();
+    protected final Map<String, KeyMappings> registryKeyMappings = new HashMap<>();
     protected final Protocol<?, ?, ?, ?> protocol;
 
-    public RegistryDataRewriter(Protocol<?, ?, ?, ?> protocol) {
+    public RegistryDataRewriter(final Protocol<?, ?, ?, ?> protocol) {
         this.protocol = protocol;
     }
 
@@ -67,12 +71,19 @@ public class RegistryDataRewriter {
 
     public RegistryEntry[] handle(final UserConnection connection, String key, RegistryEntry[] entries) {
         key = Key.stripMinecraftNamespace(key);
-        if (key.equals("enchantment")) {
-            updateEnchantments(connection, entries);
-        } else if (key.equals("trim_material")) {
-            updateTrimMaterials(entries);
-        } else if (key.equals("jukebox_song")) {
-            updateJukeboxSongs(entries);
+
+        final String[] keys = new String[entries.length];
+        for (int i = 0; i < entries.length; i++) {
+            keys[i] = Key.stripMinecraftNamespace(entries[i].key());
+        }
+        this.registryKeyMappings.put(key, new KeyMappings(keys));
+
+        switch (key) {
+            case "enchantment" -> updateEnchantments(connection, entries);
+            case "trim_material" -> updateTrimMaterials(entries);
+            case "jukebox_song" -> updateJukeboxSongs(entries);
+            case "worldgen/biome" -> updateBiomes(entries);
+            case "dialog" -> updateDialogs(connection, entries);
         }
 
         final BiConsumer<String, CompoundTag> registryEntryHandler = this.registryEntryHandlers.get(key);
@@ -95,10 +106,10 @@ public class RegistryDataRewriter {
             int index = 0;
             for (final RegistryEntry entry : entries) {
                 updatedEntries[index++] = entry;
-                existingKeys.add(entry.key());
+                existingKeys.add(Key.stripMinecraftNamespace(entry.key()));
             }
             for (final RegistryEntry entry : toAdd) {
-                if (existingKeys.contains(entry.key())) {
+                if (existingKeys.contains(Key.stripMinecraftNamespace(entry.key()))) {
                     continue;
                 }
 
@@ -149,6 +160,54 @@ public class RegistryDataRewriter {
         }
     }
 
+    public void updateDialogs(final UserConnection connection, final RegistryEntry[] entries) {
+        if (protocol.getMappingData() != null && protocol.getMappingData().getFullItemMappings() == null) {
+            return;
+        }
+        for (final RegistryEntry entry : entries) {
+            if (entry.tag() != null) {
+                updateDialog(connection, (CompoundTag) entry.tag());
+            }
+        }
+    }
+
+    @Override
+    public void updateDialog(final UserConnection connection, final CompoundTag tag) {
+        final ListTag<CompoundTag> bodiesTag = tag.getListTag("body", CompoundTag.class);
+        if (bodiesTag == null) {
+            final CompoundTag bodyTag = tag.getCompoundTag("body");
+            if (bodyTag != null) {
+                updateDialogBody(connection, bodyTag); // inlined
+            }
+            return;
+        }
+
+        for (final CompoundTag entry : bodiesTag) {
+            updateDialogBody(connection, entry);
+        }
+    }
+
+    public void updateDialogBody(final UserConnection connection, final CompoundTag tag) {
+        final String type = tag.getString("type");
+        if (!Key.equals(type, "item")) {
+            return;
+        }
+
+        final StringTag itemTag = tag.getStringTag("item");
+        if (itemTag != null) {
+            final String mappedId = protocol.getMappingData().getFullItemMappings().mappedIdentifier(itemTag.getValue());
+            if (mappedId != null) {
+                itemTag.setValue(mappedId);
+            }
+            return;
+        }
+
+        final ComponentRewriter componentRewriter = protocol.getComponentRewriter();
+        if (componentRewriter != null) {
+            componentRewriter.handleShowItem(connection, tag.getCompoundTag("item"));
+        }
+    }
+
     public void updateEnchantments(final UserConnection connection, final RegistryEntry[] entries) {
         final List<String> identifiers = new ArrayList<>(entries.length);
         for (final RegistryEntry entry : entries) {
@@ -179,12 +238,14 @@ public class RegistryDataRewriter {
                 }
             }
 
-            updateAttributesFields(effects);
-        }
+            final MappingData mappingData = protocol.getMappingData();
+            if (mappingData == null) {
+                continue;
+            }
 
-        final ItemHasher itemHasher = connection.getItemHasher(protocol.getClass());
-        if (itemHasher != null) {
-            itemHasher.setEnchantments(identifiers);
+            if (mappingData.getAttributeMappings() != null) {
+                updateAttributesFields(effects);
+            }
         }
     }
 
@@ -211,70 +272,119 @@ public class RegistryDataRewriter {
         // can be overridden
     }
 
+    public void updateBiomes(final RegistryEntry[] entries) {
+        for (final RegistryEntry entry : entries) {
+            if (entry.tag() == null) {
+                continue;
+            }
+
+            final CompoundTag effects = ((CompoundTag) entry.tag()).getCompoundTag("effects");
+            if (effects == null) {
+                continue;
+            }
+
+            final CompoundTag particle = effects.getCompoundTag("particle");
+            if (particle != null) {
+                handleParticleData(particle.getCompoundTag("options"));
+            }
+        }
+    }
+
     private void updateNestedEffect(final CompoundTag effectsTag) {
         final CompoundTag effect = effectsTag.getCompoundTag("effect");
-        if (effect == null) {
-            return;
+        if (effect != null) {
+            runEffectRewriters(effect);
+
+            final ListTag<CompoundTag> innerEffects = effect.getListTag("effects", CompoundTag.class);
+            if (innerEffects != null) {
+                for (final CompoundTag innerEffect : innerEffects) {
+                    runEffectRewriters(innerEffect);
+                }
+            }
         }
 
-        runEffectRewriters(effect);
-
-        final ListTag<CompoundTag> innerEffects = effect.getListTag("effects", CompoundTag.class);
-        if (innerEffects == null) {
-            return;
+        final CompoundTag requirements = effectsTag.getCompoundTag("requirements");
+        final ListTag<CompoundTag> terms;
+        if (requirements != null && (terms = requirements.getListTag("terms", CompoundTag.class)) != null) {
+            for (final CompoundTag term : terms) {
+                updateEnchantmentTerm(term);
+            }
         }
+    }
 
-        for (final CompoundTag innerEffect : innerEffects) {
-            runEffectRewriters(innerEffect);
+    private void updateEnchantmentTerm(final CompoundTag term) {
+        if (Key.equals(term.getString("condition"), "entity_properties")) {
+            final CompoundTag predicate = term.getCompoundTag("predicate");
+            if (predicate != null) {
+                updateType(predicate, "type", protocol.getMappingData().getEntityMappings());
+            }
+        } else if (Key.equals(term.getString("condition"), "block_state_property")) {
+            updateType(term, "block", protocol.getMappingData().getFullBlockMappings());
         }
     }
 
     private void updateAttributesFields(final CompoundTag effects) {
-        if (!hasAttributeMappings()) {
-            return;
-        }
-
         final ListTag<CompoundTag> attributesList = TagUtil.getNamespacedCompoundTagList(effects, "attributes");
         if (attributesList == null) {
             return;
         }
 
         for (final CompoundTag attributeData : attributesList) {
-            updateAttributeField(attributeData);
+            updateType(attributeData, "attribute", protocol.getMappingData().getAttributeMappings());
         }
     }
 
+    protected void handleParticleData(final CompoundTag particleData) {
+        updateType(particleData, "type", protocol.getMappingData().getParticleMappings());
+    }
+
     private void runEffectRewriters(final CompoundTag effectTag) {
-        final String effect = effectTag.getString("type");
+        String effect = effectTag.getString("type");
         if (effect == null) {
             return;
         }
 
-        updateAttributeField(effectTag);
+        effect = Key.stripMinecraftNamespace(effect);
+        if (effect.equals("attribute")) {
+            updateType(effectTag, "attribute", protocol.getMappingData().getAttributeMappings());
+        } else if (effect.equals("spawn_particles")) {
+            final CompoundTag particleData = effectTag.getCompoundTag("particle");
+            if (particleData != null) {
+                handleParticleData(particleData);
+            }
+        }
 
-        final Consumer<CompoundTag> rewriter = enchantmentEffectHandlers.get(Key.stripMinecraftNamespace(effect));
+        final Consumer<CompoundTag> rewriter = enchantmentEffectHandlers.get(effect);
         if (rewriter != null) {
             rewriter.accept(effectTag);
+        } else if (effect.equals("play_sound")) {
+            updateType(effectTag, "sound", protocol.getMappingData().getFullSoundMappings());
         }
     }
 
-    private void updateAttributeField(final CompoundTag attributeData) {
-        final StringTag attributeTag = attributeData.getStringTag("attribute");
-        if (attributeTag == null) {
+    protected void updateType(final CompoundTag tag, final String key, final FullMappings mappings) {
+        final Tag typeTag = tag.get(key);
+        if (typeTag == null || mappings == null) {
             return;
         }
 
-        final FullMappings mappings = protocol.getMappingData().getAttributeMappings();
-        final String attribute = Key.stripMinecraftNamespace(attributeTag.getValue());
-        String mappedAttribute = mappings.mappedIdentifier(attribute);
-        if (mappedAttribute == null) {
-            mappedAttribute = mappings.mappedIdentifier(0); // Dummy
+        if (typeTag instanceof StringTag stringTag) {
+            setMappedOrDummyId(mappings, stringTag);
+        } else if (typeTag instanceof ListTag<?> listTag && listTag.getElementType() == StringTag.class) {
+            //noinspection unchecked
+            final ListTag<StringTag> typesTag = (ListTag<StringTag>) listTag;
+            for (final StringTag entry : typesTag) {
+                setMappedOrDummyId(mappings, entry);
+            }
         }
-        attributeTag.setValue(mappedAttribute);
     }
 
-    private boolean hasAttributeMappings() {
-        return protocol.getMappingData() != null && protocol.getMappingData().getAttributeMappings() != null;
+    private void setMappedOrDummyId(final FullMappings mappings, final StringTag tag) {
+        String mappedType = mappings.mappedIdentifier(tag.getValue());
+        if (mappedType == null) {
+            mappedType = mappings.mappedIdentifier(0); // Dummy
+        }
+        tag.setValue(mappedType);
     }
 
     private void updateItemList(final ListTag<StringTag> listTag) {
@@ -291,5 +401,28 @@ public class RegistryDataRewriter {
         if (mapped != null) {
             tag.setValue(mapped);
         }
+    }
+
+    public RegistryEntry[] entriesFromTag(final CompoundTag tag) {
+        final RegistryEntry[] entries = new RegistryEntry[tag.size()];
+        int index = 0;
+        for (final Map.Entry<String, Tag> entry : tag.entrySet()) {
+            entries[index++] = new RegistryEntry(entry.getKey(), entry.getValue());
+        }
+        return entries;
+    }
+
+    @Override
+    public @Nullable KeyMappings getMappings(final String registryKey) {
+        return this.registryKeyMappings.get(Key.stripMinecraftNamespace(registryKey));
+    }
+
+    public Map<String, KeyMappings> registryKeyMappings() {
+        return registryKeyMappings;
+    }
+
+    @Override
+    public boolean shouldRemoveRegistry(final String registryKey) {
+        return this.toRemove.contains(Key.stripMinecraftNamespace(registryKey));
     }
 }

@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -92,7 +92,7 @@ public final class AttributeModifierMappings1_21 {
     }
 
     public static @Nullable String idToName(final String id) {
-        return ATTRIBUTE_MODIFIER_NAMES.inverse().get(id);
+        return ATTRIBUTE_MODIFIER_NAMES.inverse().get(Key.stripMinecraftNamespace(id));
     }
 
     private static void add(final long msb, final long lsb, final String id) {

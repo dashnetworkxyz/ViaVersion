@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -210,7 +210,7 @@ public class MappingDataLoader {
             return null;
         }
 
-        final int mappedSize = tag.getIntTag("mappedSize").asInt();
+        final int mappedSize = tag.getInt("mappedSize", -1);
         final byte strategy = tag.getByteTag("id").asByte();
         final V mappings;
         if (strategy == DIRECT_ID) {

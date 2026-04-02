@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -114,14 +114,23 @@ public class BukkitViaMovementTransmitter extends MovementTransmitterProvider {
             }
         } else {
             ChannelHandlerContext context = PipelineUtil.getContextBefore("decoder", info.getChannel().pipeline());
-            if (context != null) {
-                if (info.get(MovementTracker.class).isGround()) {
+            if (context == null) {
+                return;
+            }
+
+            info.getChannel().eventLoop().execute(() -> {
+                MovementTracker movementTracker = info.get(MovementTracker.class);
+                if (movementTracker == null) {
+                    return;
+                }
+
+                if (movementTracker.isGround()) {
                     context.fireChannelRead(getGroundPacket());
                 } else {
                     context.fireChannelRead(getFlyingPacket());
                 }
-                info.get(MovementTracker.class).incrementIdlePacket();
-            }
+                movementTracker.incrementIdlePacket();
+            });
         }
     }
 }

@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,7 +45,6 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.CodecException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -53,6 +52,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class UserConnectionImpl implements UserConnection {
@@ -60,9 +60,9 @@ public class UserConnectionImpl implements UserConnection {
     private static final AtomicLong IDS = new AtomicLong();
     private final long id = IDS.incrementAndGet();
     private final Map<Class<?>, StorableObject> storedObjects = new ConcurrentHashMap<>();
-    private final Map<Class<? extends Protocol>, EntityTracker> entityTrackers = new HashMap<>();
-    private final Map<Class<? extends Protocol>, ItemHasher> itemHashers = new HashMap<>();
-    private final Map<Class<? extends Protocol>, ClientWorld> clientWorlds = new HashMap<>();
+    private final Map<Class<? extends Protocol>, EntityTracker> entityTrackers = new Reference2ObjectOpenHashMap<>();
+    private final Map<Class<? extends Protocol>, ItemHasher> itemHashers = new Reference2ObjectOpenHashMap<>();
+    private final Map<Class<? extends Protocol>, ClientWorld> clientWorlds = new Reference2ObjectOpenHashMap<>();
     private final PacketTracker packetTracker = new PacketTracker(this);
     private final Set<UUID> passthroughTokens = Collections.newSetFromMap(CacheBuilder.newBuilder()
         .expireAfterWrite(10, TimeUnit.SECONDS)
@@ -154,27 +154,14 @@ public class UserConnectionImpl implements UserConnection {
     }
 
     @Override
-    public void clearStoredObjects(boolean isServerSwitch) {
-        if (isServerSwitch) {
-            storedObjects.values().removeIf(storableObject -> {
-                if (storableObject.clearOnServerSwitch()) {
-                    storableObject.onRemove();
-                    return true;
-                }
-                return false;
-            });
-            for (EntityTracker tracker : entityTrackers.values()) {
-                tracker.clearEntities();
-            }
-        } else {
-            for (StorableObject object : storedObjects.values()) {
-                object.onRemove();
-            }
-            storedObjects.clear();
-            entityTrackers.clear();
-            itemHashers.clear();
-            clientWorlds.clear();
+    public void clearStoredObjects() {
+        for (StorableObject object : storedObjects.values()) {
+            object.onRemove();
         }
+        storedObjects.clear();
+        entityTrackers.clear();
+        itemHashers.clear();
+        clientWorlds.clear();
     }
 
     @Override
@@ -192,7 +179,7 @@ public class UserConnectionImpl implements UserConnection {
             sendRawPacketNow(packet);
         } else {
             try {
-                channel.eventLoop().submit(() -> sendRawPacketNow(packet));
+                channel.eventLoop().execute(() -> sendRawPacketNow(packet));
             } catch (Throwable e) {
                 packet.release(); // Couldn't schedule
                 e.printStackTrace();
@@ -282,7 +269,7 @@ public class UserConnectionImpl implements UserConnection {
                 fireChannelRead(context, buf);
             } else {
                 try {
-                    channel.eventLoop().submit(() -> fireChannelRead(context, buf));
+                    channel.eventLoop().execute(() -> fireChannelRead(context, buf));
                 } catch (Throwable t) {
                     // Couldn't schedule
                     buf.release();
@@ -307,7 +294,7 @@ public class UserConnectionImpl implements UserConnection {
             writeAndFlush(packet);
         } else {
             try {
-                getChannel().eventLoop().submit(() -> writeAndFlush(packet));
+                getChannel().eventLoop().execute(() -> writeAndFlush(packet));
             } catch (Throwable e) {
                 e.printStackTrace();
                 packet.release(); // Couldn't schedule
@@ -320,12 +307,16 @@ public class UserConnectionImpl implements UserConnection {
     }
 
     @Override
-    public boolean checkServerboundPacket() {
+    public boolean checkServerboundPacket(final int bytes) {
         if (pendingDisconnect) {
-            return false;
+            return false; // Cancel everything while disconnecting
         }
-        // Increment received + Check PPS
-        return !packetTracker.isPacketLimiterEnabled() || !packetTracker.incrementReceived() || !packetTracker.exceedsMaxPPS();
+        if (!packetTracker.isPacketLimiterEnabled()) {
+            return true;
+        }
+
+        packetTracker.incrementReceived(bytes);
+        return !packetTracker.exceedsLimits();
     }
 
     @Override

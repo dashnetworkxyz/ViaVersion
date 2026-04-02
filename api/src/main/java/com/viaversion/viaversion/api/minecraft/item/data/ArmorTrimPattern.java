@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,10 +24,12 @@ package com.viaversion.viaversion.api.minecraft.item.data;
 
 import com.viaversion.nbt.tag.Tag;
 import com.viaversion.viaversion.api.connection.UserConnection;
+import com.viaversion.viaversion.api.minecraft.codec.Ops;
 import com.viaversion.viaversion.api.protocol.Protocol;
 import com.viaversion.viaversion.api.type.Types;
 import com.viaversion.viaversion.api.type.types.misc.HolderType;
 import com.viaversion.viaversion.util.Copyable;
+import com.viaversion.viaversion.util.Key;
 import com.viaversion.viaversion.util.Rewritable;
 import io.netty.buffer.ByteBuf;
 
@@ -69,6 +71,19 @@ public record ArmorTrimPattern(String assetName, int itemId, Tag description, bo
             Types.STRING.write(buffer, value.assetName());
             Types.TAG.write(buffer, value.description());
             buffer.writeBoolean(value.decal());
+        }
+
+        @Override
+        public void writeDirect(final Ops ops, final ArmorTrimPattern object) {
+            ops.writeMap(map -> map
+                .write("asset_id", Types.IDENTIFIER, Key.of(object.assetName()))
+                .write("description", Types.TEXT_COMPONENT_TAG, object.description())
+                .write("decal", Types.BOOLEAN, object.decal()));
+        }
+
+        @Override
+        protected Key identifier(final Ops ops, final int id) {
+            return ops.context().registryAccess().registryKey("trim_pattern", id);
         }
     };
 

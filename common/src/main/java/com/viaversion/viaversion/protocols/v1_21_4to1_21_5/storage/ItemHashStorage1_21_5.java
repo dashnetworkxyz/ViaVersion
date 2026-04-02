@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,37 +19,27 @@ package com.viaversion.viaversion.protocols.v1_21_4to1_21_5.storage;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.viaversion.viaversion.api.data.item.ItemHasher;
 import com.viaversion.viaversion.api.minecraft.codec.CodecContext;
 import com.viaversion.viaversion.api.minecraft.codec.CodecContext.RegistryAccess;
 import com.viaversion.viaversion.api.minecraft.codec.hash.Hasher;
-import com.viaversion.viaversion.api.data.item.ItemHasher;
 import com.viaversion.viaversion.api.minecraft.data.StructuredData;
 import com.viaversion.viaversion.codec.CodecRegistryContext;
 import com.viaversion.viaversion.codec.hash.HashFunction;
 import com.viaversion.viaversion.codec.hash.HashOps;
 import com.viaversion.viaversion.data.item.ItemHasherBase;
 import com.viaversion.viaversion.protocols.v1_21_4to1_21_5.Protocol1_21_4To1_21_5;
-import com.viaversion.viaversion.util.SerializerVersion;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 public class ItemHashStorage1_21_5 implements ItemHasher {
 
     private final Cache<Long, StructuredData<?>> hashToStructuredData = CacheBuilder.newBuilder().concurrencyLevel(1).maximumSize(512).build();
-    private final List<String> enchantmentRegistry = new ArrayList<>();
     private boolean processingClientboundInventoryPacket;
     private final CodecContext context;
 
     public ItemHashStorage1_21_5(final Protocol1_21_4To1_21_5 protocol) {
-        final RegistryAccess registryAccess = RegistryAccess.of(this.enchantmentRegistry, protocol.getMappingData());
-        this.context = new CodecRegistryContext(protocol, SerializerVersion.V1_21_5, SerializerVersion.V1_21_5, registryAccess, true); // always using 1.21.5 items as input
-    }
-
-    @Override
-    public void setEnchantments(final List<String> enchantments) {
-        this.enchantmentRegistry.clear();
-        this.enchantmentRegistry.addAll(enchantments);
+        final RegistryAccess registryAccess = RegistryAccess.of(protocol);
+        this.context = new CodecRegistryContext(protocol, registryAccess, true); // always using 1.21.5 items as input
     }
 
     public void trackStructuredData(final StructuredData<?> structuredData) {

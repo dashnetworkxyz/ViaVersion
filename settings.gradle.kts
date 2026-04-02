@@ -14,10 +14,16 @@ dependencyResolutionManagement {
 pluginManagement {
     // default plugin versions
     plugins {
-        id("net.kyori.blossom") version "2.1.0"
-        id("org.jetbrains.gradle.plugin.idea-ext") version "1.1.10"
-        id("com.gradleup.shadow") version "8.3.6"
+        id("com.gradleup.shadow") version "9.4.1"
+        id("net.kyori.blossom") version "2.2.0"
+        id("org.jetbrains.gradle.plugin.idea-ext") version "1.4.1"
+
+        // A nice no-conflict comment for patching in downgrading
     }
+}
+
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
 rootProject.name = "viaversion-parent"

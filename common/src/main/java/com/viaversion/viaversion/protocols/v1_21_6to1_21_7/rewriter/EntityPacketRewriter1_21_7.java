@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,12 +20,10 @@ package com.viaversion.viaversion.protocols.v1_21_6to1_21_7.rewriter;
 import com.viaversion.viaversion.api.minecraft.entities.EntityType;
 import com.viaversion.viaversion.api.minecraft.entities.EntityTypes1_21_6;
 import com.viaversion.viaversion.api.minecraft.entitydata.types.EntityDataTypes1_21_5;
-import com.viaversion.viaversion.protocols.v1_21_5to1_21_6.packet.ClientboundConfigurationPackets1_21_6;
 import com.viaversion.viaversion.protocols.v1_21_5to1_21_6.packet.ClientboundPacket1_21_6;
 import com.viaversion.viaversion.protocols.v1_21_5to1_21_6.packet.ClientboundPackets1_21_6;
 import com.viaversion.viaversion.protocols.v1_21_6to1_21_7.Protocol1_21_6To1_21_7;
 import com.viaversion.viaversion.rewriter.EntityRewriter;
-import com.viaversion.viaversion.rewriter.RegistryDataRewriter;
 
 public final class EntityPacketRewriter1_21_7 extends EntityRewriter<ClientboundPacket1_21_6, Protocol1_21_6To1_21_7> {
 
@@ -42,14 +40,11 @@ public final class EntityPacketRewriter1_21_7 extends EntityRewriter<Clientbound
         registerGameEvent(ClientboundPackets1_21_6.GAME_EVENT);
         registerLogin1_20_5(ClientboundPackets1_21_6.LOGIN);
         registerRespawn1_20_5(ClientboundPackets1_21_6.RESPAWN);
-
-        final RegistryDataRewriter registryDataRewriter = new RegistryDataRewriter(protocol);
-        protocol.registerClientbound(ClientboundConfigurationPackets1_21_6.REGISTRY_DATA, registryDataRewriter::handle);
     }
 
     @Override
     protected void registerRewrites() {
-        final EntityDataTypes1_21_5 entityDataTypes = protocol.types().entityDataTypes();
+        final EntityDataTypes1_21_5 entityDataTypes = protocol.mappedTypes().entityDataTypes();
         registerEntityDataTypeHandler(
             entityDataTypes.itemType,
             entityDataTypes.blockStateType,

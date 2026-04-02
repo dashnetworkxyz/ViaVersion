@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,7 +33,6 @@ import com.viaversion.viaversion.api.type.Types;
 import com.viaversion.viaversion.codec.CodecRegistryContext;
 import com.viaversion.viaversion.codec.hash.HashFunction;
 import com.viaversion.viaversion.codec.hash.HashOps;
-import com.viaversion.viaversion.util.SerializerVersion;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,22 +44,15 @@ public class ItemHasherBase implements ItemHasher {
     public static int UNKNOWN_HASH = 399825415; // some random-ish number, from hashing Integer.MIN_VALUE+1 with crc32c
     private final Map<Integer, HashedItem> hashes = CacheBuilder.newBuilder().concurrencyLevel(1).maximumSize(1024).<Integer, HashedItem>build().asMap();
     protected final UserConnection connection;
-    private final List<String> enchantments = new ArrayList<>();
     private boolean processingClientboundInventoryPacket;
     private final CodecContext context;
     private final CodecContext mappedContext;
 
-    public ItemHasherBase(final Protocol<?, ?, ?, ?> protocol, final UserConnection connection, final SerializerVersion serializerVersion, final SerializerVersion mappedSerializerVersion) {
-        final RegistryAccess registryAccess = RegistryAccess.of(this.enchantments, protocol.getMappingData());
-        this.context = new CodecRegistryContext(protocol, serializerVersion, mappedSerializerVersion, registryAccess, false);
-        this.mappedContext = new CodecRegistryContext(protocol, serializerVersion, mappedSerializerVersion, registryAccess, true);
+    public ItemHasherBase(final Protocol<?, ?, ?, ?> protocol, final UserConnection connection) {
+        final RegistryAccess registryAccess = RegistryAccess.of(protocol);
+        this.context = new CodecRegistryContext(protocol, registryAccess, false);
+        this.mappedContext = new CodecRegistryContext(protocol, registryAccess, true);
         this.connection = connection;
-    }
-
-    @Override
-    public void setEnchantments(final List<String> enchantments) {
-        this.enchantments.clear();
-        this.enchantments.addAll(enchantments);
     }
 
     /**
@@ -124,6 +116,8 @@ public class ItemHasherBase implements ItemHasher {
                 entry.setValue(clientProvidedHash);
             }
         }
+
+        originalItem.setAmount(clientItem.amount());
         return originalItem;
     }
 

@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -92,11 +92,6 @@ public class ConfigurationState implements StorableObject {
     }
 
     @Override
-    public boolean clearOnServerSwitch() {
-        return false;
-    }
-
-    @Override
     public void onRemove() {
         for (final QueuedPacket packet : packetQueue) {
             packet.buf().release();
@@ -118,10 +113,10 @@ public class ConfigurationState implements StorableObject {
             packetQueue.add(hasJoinGamePacket ? 1 : 0, toQueuedPacket(clientInformationPacket, false, true));
         }
 
-        final ConfigurationState.QueuedPacket[] queuedPackets = packetQueue.toArray(EMPTY_PACKET_ARRAY);
+        final QueuedPacket[] queuedPackets = packetQueue.toArray(EMPTY_PACKET_ARRAY);
         packetQueue.clear();
 
-        for (final ConfigurationState.QueuedPacket packet : queuedPackets) {
+        for (final QueuedPacket packet : queuedPackets) {
             final PacketWrapper queuedWrapper;
             try {
                 if (packet.packetType() != null) {
@@ -181,7 +176,7 @@ public class ConfigurationState implements StorableObject {
         private final int packetId;
         private final boolean skipCurrentPipeline;
 
-        private QueuedPacket(final ByteBuf buf, final boolean clientbound, final PacketType packetType,
+        private QueuedPacket(final ByteBuf buf, final boolean clientbound, @Nullable final PacketType packetType,
                              final int packetId, final boolean skipCurrentPipeline) {
             this.buf = buf;
             this.clientbound = clientbound;

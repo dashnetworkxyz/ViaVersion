@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -110,8 +110,7 @@ public class SpawnPacketRewriter1_9 {
                             List<EntityData> entityData = new ArrayList<>();
                             Item item = new DataItem(373, (byte) 1, (short) data, null); // Potion
                             protocol.getItemRewriter().handleItemToClient(wrapper.user(), item); // Rewrite so that it gets the right nbt
-                            // TEMP FIX FOR POTIONS UNTIL WE FIGURE OUT HOW TO TRANSFORM SENT PACKETS
-                            EntityData potion = new EntityData(5, EntityDataTypes1_9.ITEM, item);
+                            EntityData potion = new EntityData(6, EntityDataTypes1_9.ITEM, item); // Would be 5, except Vanilla uses the wrong entity class when registering
                             entityData.add(potion);
                             wrapper1.write(Types.ENTITY_DATA_LIST1_9, entityData);
                         });

@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@ public enum SerializerVersion {
     V1_20_3(TextComponentCodec.V1_20_3, SNbt.V1_14),
     V1_20_5(TextComponentCodec.V1_20_5, SNbt.V1_14),
     V1_21_4(TextComponentCodec.V1_21_4, SNbt.V1_14),
-    V1_21_5(TextComponentCodec.V1_21_5, null/*Currently not needed and also not implemented 100% in MCStructs*/),
+    // SNBT 1.21.5+ is not working at the moment
     V1_21_6(TextComponentCodec.V1_21_6, null);
 
     final TextComponentSerializer jsonSerializer;

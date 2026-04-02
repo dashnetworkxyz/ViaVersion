@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ public final class ComponentRewriter1_21_2 extends JsonNBTComponentRewriter<Clie
             levels.entrySet().removeIf(entry -> ((NumberTag) entry.getValue()).asInt() == 0);
         }
 
-        removeDataComponents(componentsTag, StructuredDataKey.FIRE_RESISTANT, StructuredDataKey.LOCK);
+        removeDataComponents(componentsTag, StructuredDataKey.FIRE_RESISTANT, StructuredDataKey.LOCK1_20_5);
 
         final StringTag customName = TagUtil.getNamespacedStringTag(componentsTag, "custom_name");
         final StringTag itemName = TagUtil.getNamespacedStringTag(componentsTag, "item_name");

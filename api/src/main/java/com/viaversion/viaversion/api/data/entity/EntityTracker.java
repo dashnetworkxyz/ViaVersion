@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -81,6 +81,11 @@ public interface EntityTracker {
      * Clears stored entity types and data, only leaving behind the client entity.
      */
     void clearEntities();
+
+    /**
+     * Clears all stored data, including entity types, entity data and client entity id.
+     */
+    void clear();
 
     /**
      * Returns the stored entity data if an entity with the id is tracked, else null.
@@ -179,6 +184,20 @@ public interface EntityTracker {
      * @param currentWorld name of the current world
      */
     void setCurrentWorld(String currentWorld);
+
+    /**
+     * Returns the id of the current dimension, or -1 if unset (i.e. before 1.20.5).
+     *
+     * @return id of the current dimension, or -1 if unset
+     */
+    int currentDimensionId();
+
+    /**
+     * Sets the id of the current dimension.
+     *
+     * @param currentDimensionId id of the current dimension
+     */
+    void setCurrentDimensionId(int currentDimensionId);
 
     int biomesSent();
 

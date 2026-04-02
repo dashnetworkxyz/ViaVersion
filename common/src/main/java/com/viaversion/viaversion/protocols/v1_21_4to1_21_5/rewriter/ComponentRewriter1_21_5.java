@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -204,9 +204,9 @@ public final class ComponentRewriter1_21_5 extends JsonNBTComponentRewriter<Clie
     }
 
     private void updateShowTextHover(final UserConnection connection, final CompoundTag hoverEventTag) {
-        if (hoverEventTag.remove("value") instanceof final StringTag value) {
-            final Tag contents = uglyJsonToTag(connection, value.getValue());
-            hoverEventTag.put("value", contents);
+        final Tag value = hoverEventTag.get("value");
+        if (value != null) {
+            processTag(connection, value);
             return;
         }
 
@@ -321,7 +321,7 @@ public final class ComponentRewriter1_21_5 extends JsonNBTComponentRewriter<Clie
         try {
             return uglyJsonToTagUncaught(connection, value);
         } catch (final Exception e) {
-            if (!Via.getConfig().isSuppressTextComponentConversionWarnings()) {
+            if (Via.getConfig().logTextComponentConversionErrors()) {
                 Via.getPlatform().getLogger().log(Level.SEVERE, "Error converting json text component: " + StringUtil.forLogging(value), e);
             }
             return new StringTag("<error>");

@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -313,6 +313,27 @@ public abstract class EntityRewriter<C extends ClientboundPacketType, T extends 
         });
     }
 
+    public void registerTrackerWithData1_21_9(C packetType, EntityType fallingBlockType) {
+        protocol.registerClientbound(packetType, wrapper -> {
+            final int entityId = wrapper.passthrough(Types.VAR_INT);
+            wrapper.passthrough(Types.UUID); // Entity UUID
+            final int entityTypeId = wrapper.passthrough(Types.VAR_INT);
+            wrapper.passthrough(Types.DOUBLE); // X
+            wrapper.passthrough(Types.DOUBLE); // Y
+            wrapper.passthrough(Types.DOUBLE); // Z
+            wrapper.passthrough(Types.LOW_PRECISION_VECTOR); // Movement
+            wrapper.passthrough(Types.BYTE); // Pitch
+            wrapper.passthrough(Types.BYTE); // Yaw
+            wrapper.passthrough(Types.BYTE); // Head yaw
+            final int data = wrapper.passthrough(Types.VAR_INT);
+            final EntityType entityType = trackAndRewrite(wrapper, entityTypeId, entityId);
+            if (protocol.getMappingData() != null && entityType == fallingBlockType) {
+                final int mappedBlockStateId = protocol.getMappingData().getNewBlockStateId(data);
+                wrapper.set(Types.VAR_INT, 2, mappedBlockStateId);
+            }
+        });
+    }
+
     /**
      * Registers an entity tracker for the extra spawn packets like player, painting, or xp orb spawns.
      *
@@ -514,6 +535,7 @@ public abstract class EntityRewriter<C extends ClientboundPacketType, T extends 
             dimensionData = tracker.dimensionData("overworld");
             Preconditions.checkNotNull(dimensionData, "Overworld data missing");
         }
+        tracker.setCurrentDimensionId(dimensionId);
         tracker.setCurrentWorldSectionHeight(dimensionData.height() >> 4);
         tracker.setCurrentMinY(dimensionData.minY());
         trackWorld(connection, world);
@@ -625,7 +647,7 @@ public abstract class EntityRewriter<C extends ClientboundPacketType, T extends 
     // ---------------------------------------------------------------------------
 
     private void logException(Exception e, @Nullable EntityType type, List<EntityData> entityDataList, EntityData entityData) {
-        if (!Via.getConfig().isSuppressMetadataErrors() || Via.getManager().isDebug()) {
+        if (Via.getConfig().logEntityDataErrors()) {
             protocol.getLogger().severe("An error occurred in entity data handler " + this.getClass().getSimpleName()
                 + " for " + (type != null ? type.name() : "untracked") + " entity type: " + entityData);
             protocol.getLogger().severe(entityDataList.stream().sorted(Comparator.comparingInt(EntityData::id))

@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,16 +22,34 @@
  */
 package com.viaversion.viaversion.api.type.types.misc;
 
+import com.google.common.base.Preconditions;
+import com.viaversion.viaversion.api.data.MappingData;
 import com.viaversion.viaversion.api.minecraft.HolderSet;
+import com.viaversion.viaversion.api.minecraft.RegistryKey;
+import com.viaversion.viaversion.api.minecraft.codec.Ops;
 import com.viaversion.viaversion.api.type.OptionalType;
 import com.viaversion.viaversion.api.type.Type;
 import com.viaversion.viaversion.api.type.Types;
+import com.viaversion.viaversion.api.type.types.VarIntArrayType;
+import com.viaversion.viaversion.util.Key;
 import io.netty.buffer.ByteBuf;
 
 public class HolderSetType extends Type<HolderSet> {
 
+    private final RegistryKey registryKey;
+
     public HolderSetType() {
+        this(null);
+    }
+
+    /**
+     * Creates a holder set type that is able to write to {@link Ops}.
+     *
+     * @param registryKey registry key
+     */
+    public HolderSetType(final RegistryKey registryKey) {
         super(HolderSet.class);
+        this.registryKey = registryKey;
     }
 
     @Override
@@ -41,12 +59,7 @@ public class HolderSetType extends Type<HolderSet> {
             final String tag = Types.STRING.read(buffer);
             return HolderSet.of(tag);
         }
-
-        final int[] values = new int[size];
-        for (int i = 0; i < size; i++) {
-            values[i] = Types.VAR_INT.readPrimitive(buffer);
-        }
-        return HolderSet.of(values);
+        return HolderSet.of(new VarIntArrayType(size).read(buffer));
     }
 
     @Override
@@ -60,6 +73,36 @@ public class HolderSetType extends Type<HolderSet> {
             for (final int value : values) {
                 Types.VAR_INT.writePrimitive(buffer, value);
             }
+        }
+    }
+
+    @Override
+    public void write(final Ops ops, final HolderSet value) {
+        if (value.hasTagKey()) {
+            ops.write(Types.TAG_KEY, Key.of(value.tagKey()));
+        } else {
+            Preconditions.checkArgument(registryKey != null, "Cannot write HolderSet with direct ids without a mapping type");
+            if (value.ids().length == 1) {
+                // Single entries are inlined
+                ops.write(Types.IDENTIFIER, key(ops, value.ids()[0]));
+                return;
+            }
+
+            ops.writeList(list -> {
+                for (final int id : value.ids()) {
+                    list.write(Types.IDENTIFIER, key(ops, id));
+                }
+            });
+        }
+    }
+
+    private Key key(final Ops ops, final int id) {
+        if (registryKey instanceof final MappingData.MappingType mappingType) {
+            return ops.context().registryAccess().key(mappingType, id);
+        } else if (registryKey instanceof final RegistryValueType registryValueType) {
+            return Key.of(registryValueType.byId(id));
+        } else {
+            return ops.context().registryAccess().registryKey(registryKey.key().toString(), id);
         }
     }
 

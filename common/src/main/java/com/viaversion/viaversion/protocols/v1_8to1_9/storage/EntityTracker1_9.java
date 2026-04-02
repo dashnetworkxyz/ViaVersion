@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -191,7 +191,7 @@ public class EntityTracker1_9 extends EntityTrackerBase {
                     byte data = (byte) entityData.getValue();
                     // If sword blocking is done through consumables (1.21.4+), don't add a shield.
                     if (entityId != getProvidedEntityId() && Via.getConfig().isShieldBlocking()
-                            && user().getProtocolInfo().protocolVersion().olderThan(ProtocolVersion.v1_21_4)) {
+                        && user().getProtocolInfo().protocolVersion().olderThan(ProtocolVersion.v1_21_4)) {
                         if ((data & 0x10) == 0x10) {
                             if (validBlocking.contains(entityId)) {
                                 Item shield = new DataItem(442, (byte) 1, (short) 0, null);

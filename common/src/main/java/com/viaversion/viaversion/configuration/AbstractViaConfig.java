@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,33 +19,37 @@ package com.viaversion.viaversion.configuration;
 
 import com.google.gson.JsonElement;
 import com.viaversion.viaversion.api.Via;
+import com.viaversion.viaversion.api.configuration.RateLimitConfig;
 import com.viaversion.viaversion.api.configuration.ViaVersionConfig;
 import com.viaversion.viaversion.api.minecraft.WorldIdentifiers;
 import com.viaversion.viaversion.api.protocol.version.BlockedProtocolVersions;
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
 import com.viaversion.viaversion.protocol.BlockedProtocolVersionsImpl;
 import com.viaversion.viaversion.util.Config;
+import com.viaversion.viaversion.util.ConfigSection;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public abstract class AbstractViaConfig extends Config implements ViaVersionConfig {
+public class AbstractViaConfig extends Config implements ViaVersionConfig {
+
     public static final List<String> BUKKIT_ONLY_OPTIONS = Arrays.asList("register-userconnections-on-join", "quick-move-action-fix",
         "change-1_9-hitbox", "change-1_14-hitbox", "blockconnection-method", "armor-toggle-fix", "use-new-deathmessages",
         "item-cache", "nms-player-ticking");
-
     public static final List<String> VELOCITY_ONLY_OPTIONS = Arrays.asList("velocity-ping-interval", "velocity-ping-save", "velocity-servers");
 
     private boolean checkForUpdates;
     private boolean preventCollision;
     private boolean useNewEffectIndicator;
-    private boolean suppressMetadataErrors;
+    private boolean logEntityDataErrors;
     private boolean shieldBlocking;
     private boolean noDelayShieldBlocking;
     private boolean showShieldWhenSwordInHand;
@@ -54,12 +58,8 @@ public abstract class AbstractViaConfig extends Config implements ViaVersionConf
     private boolean bossbarPatch;
     private boolean bossbarAntiFlicker;
     private double hologramOffset;
-    private int maxPPS;
-    private String maxPPSKickMessage;
-    private int trackingPeriod;
-    private int warningPPS;
-    private int maxPPSWarnings;
-    private String maxPPSWarningsKickMessage;
+    private RateLimitConfig packetTrackerConfig;
+    private RateLimitConfig packetSizeTrackerConfig;
     private boolean sendSupportedVersions;
     private boolean simulatePlayerTick;
     private boolean replacePistons;
@@ -68,9 +68,10 @@ public abstract class AbstractViaConfig extends Config implements ViaVersionConf
     private boolean autoTeam;
     private BlockedProtocolVersions blockedProtocolVersions;
     private String blockedDisconnectMessage;
+    private boolean logBlockedJoins;
     private String reloadDisconnectMessage;
-    private boolean suppressConversionWarnings;
-    private boolean suppressTextComponentConversionWarnings;
+    private boolean logOtherConversionErrors;
+    private boolean logTextComponentConversionErrors;
     private boolean disable1_13TabComplete;
     private boolean teamColourFix;
     private boolean serversideBlockConnections;
@@ -96,22 +97,37 @@ public abstract class AbstractViaConfig extends Config implements ViaVersionConf
     private boolean cancelBlockSounds;
     private boolean hideScoreboardNumbers;
     private boolean fix1_21PlacementRotation;
+    private boolean cancelSwingInInventory;
+    private int maxErrorLength;
+    private boolean use1_8HitboxMargin;
+    private boolean sendPlayerDetails;
+    private boolean sendServerDetails;
 
-    protected AbstractViaConfig(final File configFile, final Logger logger) {
+    public AbstractViaConfig(final File configFile, final Logger logger) {
         super(configFile, logger);
     }
 
     @Override
     public void reload() {
         super.reload();
+        if (updateConfig()) {
+            save();
+        }
         loadFields();
+    }
+
+    @Override
+    public List<String> getUnsupportedOptions() {
+        final List<String> unsupportedOptions = new ArrayList<>(BUKKIT_ONLY_OPTIONS);
+        unsupportedOptions.addAll(VELOCITY_ONLY_OPTIONS);
+        unsupportedOptions.add("check-for-updates");
+        return unsupportedOptions;
     }
 
     protected void loadFields() {
         checkForUpdates = getBoolean("check-for-updates", true);
         preventCollision = getBoolean("prevent-collision", true);
         useNewEffectIndicator = getBoolean("use-new-effect-indicator", true);
-        suppressMetadataErrors = getBoolean("suppress-metadata-errors", false);
         shieldBlocking = getBoolean("shield-blocking", true);
         noDelayShieldBlocking = getBoolean("no-delay-shield-blocking", false);
         showShieldWhenSwordInHand = getBoolean("show-shield-when-sword-in-hand", false);
@@ -120,12 +136,6 @@ public abstract class AbstractViaConfig extends Config implements ViaVersionConf
         bossbarPatch = getBoolean("bossbar-patch", true);
         bossbarAntiFlicker = getBoolean("bossbar-anti-flicker", false);
         hologramOffset = getDouble("hologram-y", -0.96D);
-        maxPPS = getInt("max-pps", 800);
-        maxPPSKickMessage = getString("max-pps-kick-msg", "Sending packets too fast? lag?");
-        trackingPeriod = getInt("tracking-period", 6);
-        warningPPS = getInt("tracking-warning-pps", 120);
-        maxPPSWarnings = getInt("tracking-max-warnings", 3);
-        maxPPSWarningsKickMessage = getString("tracking-max-kick-msg", "You are sending too many packets, :(");
         sendSupportedVersions = getBoolean("send-supported-versions", false);
         simulatePlayerTick = getBoolean("simulate-pt", true);
         replacePistons = getBoolean("replace-pistons", false);
@@ -136,8 +146,6 @@ public abstract class AbstractViaConfig extends Config implements ViaVersionConf
         blockedDisconnectMessage = getString("block-disconnect-msg", "You are using an unsupported Minecraft version!");
         reloadDisconnectMessage = getString("reload-disconnect-msg", "Server reload, please rejoin!");
         teamColourFix = getBoolean("team-colour-fix", true);
-        suppressConversionWarnings = getBoolean("suppress-conversion-warnings", false);
-        suppressTextComponentConversionWarnings = getBoolean("suppress-text-component-conversion-warnings", true);
         disable1_13TabComplete = getBoolean("disable-1_13-auto-complete", false);
         serversideBlockConnections = getBoolean("serverside-blockconnections", true);
         reduceBlockStorageMemory = getBoolean("reduce-blockstorage-memory", false);
@@ -165,6 +173,71 @@ public abstract class AbstractViaConfig extends Config implements ViaVersionConf
         cancelBlockSounds = getBoolean("cancel-block-sounds", true);
         hideScoreboardNumbers = getBoolean("hide-scoreboard-numbers", false);
         fix1_21PlacementRotation = getBoolean("fix-1_21-placement-rotation", true);
+        cancelSwingInInventory = getBoolean("cancel-swing-in-inventory", true);
+        use1_8HitboxMargin = getBoolean("use-1_8-hitbox-margin", true);
+        sendPlayerDetails = getBoolean("send-player-details", true);
+        sendServerDetails = getBoolean("send-server-details", true);
+        packetTrackerConfig = loadRateLimitConfig(getSection("packet-limiter"), "%pps", 1);
+        packetSizeTrackerConfig = loadRateLimitConfig(getSection("packet-size-limiter"), "%bps", 1024);
+
+        final ConfigSection loggingSection = getSection("logging");
+        logBlockedJoins = loggingSection.getBoolean("log-blocked-joins", false);
+        logEntityDataErrors = loggingSection.getBoolean("log-entity-data-errors", true);
+        logTextComponentConversionErrors = loggingSection.getBoolean("log-text-component-conversion-errors", false);
+        logOtherConversionErrors = loggingSection.getBoolean("log-other-conversion-warnings", false);
+        maxErrorLength = loggingSection.getInt("max-error-length", 1500);
+    }
+
+    /**
+     * Updates the config if the existing merging of default and provided config is not enough.
+     * <p>
+     * This can for example include renaming config options or changing default values.
+     *
+     * @return true if the config should be saved after calling this method
+     * @see #originalRootSection()
+     */
+    protected boolean updateConfig() {
+        ConfigSection original = originalRootSection();
+        if (original == null) {
+            return false;
+        }
+
+        boolean modified = false;
+        if (original.contains("max-pps")) {
+            // 5.5.0 pps changes
+            ConfigSection section = getSection("packet-limiter");
+            section.set("max-per-second", original.getInt("max-pps", -1));
+            section.set("max-per-second-kick-message", original.getString("max-pps-kick-msg", "You are sending too many packets!"));
+            section.set("sustained-max-per-second", original.getInt("tracking-warning-pps", -1));
+            section.set("sustained-threshold", original.getInt("tracking-max-warnings", 3));
+            section.set("sustained-period-seconds", original.getInt("tracking-period", 7));
+            section.set("sustained-kick-message", original.getString("tracking-max-kick-msg", "You are sending too many packets, :("));
+            modified = true;
+        }
+
+        final int initialConfigVersion = original.getInt("init-config-version", 0); // version the config was initially created with
+        final int configVersion = original.getInt("config-version", 0);
+        final boolean migrateDefaults = original.getBoolean("migrate-default-config-changes", true);
+        if (configVersion < 1 && migrateDefaults) {
+            // 5.5.0/5.7.0 change of defaults
+            final ConfigSection packetLimiterSection = getSection("packet-limiter");
+            final int sustainedMax = packetLimiterSection.getInt("sustained-max-per-second", 0);
+            if (sustainedMax == 120 || sustainedMax == 150) {
+                packetLimiterSection.set("sustained-max-per-second", 200);
+                modified = true;
+            }
+            if (packetLimiterSection.getInt("sustained-period-seconds", 0) == 6) {
+                packetLimiterSection.set("sustained-period-seconds", 7);
+                modified = true;
+            }
+
+            ConfigSection loggingSection = getSection("logging");
+            loggingSection.set("log-blocked-joins", original.getBoolean("log-blocked-joins", false));
+            loggingSection.set("log-entity-data-errors", !original.getBoolean("suppress-metadata-errors", false));
+            loggingSection.set("max-error-length", original.getInt("max-error-length", 1500));
+            // Don't migrate the others
+        }
+        return modified;
     }
 
     private BlockedProtocolVersions loadBlockedProtocolVersions() {
@@ -226,6 +299,21 @@ public abstract class AbstractViaConfig extends Config implements ViaVersionConf
         return new BlockedProtocolVersionsImpl(blockedProtocols, lowerBound, upperBound);
     }
 
+    private RateLimitConfig loadRateLimitConfig(ConfigSection section, String placeholder, int countMultiplier) {
+        final int maxPerSecond = section.getInt("max-per-second", -1);
+        final int sustainedMaxPerSecond = section.getInt("sustained-max-per-second", -1);
+        return new RateLimitConfig(
+            section.getBoolean("enabled", true),
+            maxPerSecond != -1 ? maxPerSecond * countMultiplier : -1,
+            section.getString("max-per-second-kick-message", "You are sending too many packets!"),
+            sustainedMaxPerSecond != -1 ? sustainedMaxPerSecond * countMultiplier : -1,
+            section.getInt("sustained-threshold", 3),
+            TimeUnit.SECONDS.toNanos(section.getInt("sustained-period-seconds", 6)),
+            section.getString("sustained-kick-message", "You are sending too many packets, :("),
+            placeholder
+        );
+    }
+
     private @Nullable ProtocolVersion protocolVersion(String s) {
         ProtocolVersion protocolVersion = ProtocolVersion.getClosest(s);
         if (protocolVersion == null) {
@@ -262,8 +350,8 @@ public abstract class AbstractViaConfig extends Config implements ViaVersionConf
     }
 
     @Override
-    public boolean isSuppressMetadataErrors() {
-        return suppressMetadataErrors;
+    public boolean logEntityDataErrors() {
+        return logEntityDataErrors || Via.getManager().isDebug();
     }
 
     @Override
@@ -307,33 +395,13 @@ public abstract class AbstractViaConfig extends Config implements ViaVersionConf
     }
 
     @Override
-    public int getMaxPPS() {
-        return maxPPS;
+    public RateLimitConfig getPacketTrackerConfig() {
+        return packetTrackerConfig;
     }
 
     @Override
-    public String getMaxPPSKickMessage() {
-        return maxPPSKickMessage;
-    }
-
-    @Override
-    public int getTrackingPeriod() {
-        return trackingPeriod;
-    }
-
-    @Override
-    public int getWarningPPS() {
-        return warningPPS;
-    }
-
-    @Override
-    public int getMaxWarnings() {
-        return maxPPSWarnings;
-    }
-
-    @Override
-    public String getMaxWarningsKickMessage() {
-        return maxPPSWarningsKickMessage;
+    public RateLimitConfig getPacketSizeTrackerConfig() {
+        return packetSizeTrackerConfig;
     }
 
     @Override
@@ -398,6 +466,11 @@ public abstract class AbstractViaConfig extends Config implements ViaVersionConf
     }
 
     @Override
+    public boolean logBlockedJoins() {
+        return logBlockedJoins;
+    }
+
+    @Override
     public String getReloadDisconnectMsg() {
         return reloadDisconnectMessage;
     }
@@ -408,13 +481,13 @@ public abstract class AbstractViaConfig extends Config implements ViaVersionConf
     }
 
     @Override
-    public boolean isSuppressConversionWarnings() {
-        return suppressConversionWarnings && !Via.getManager().isDebug(); // Debug mode overrules config
+    public boolean logOtherConversionWarnings() {
+        return logOtherConversionErrors || Via.getManager().isDebug();
     }
 
     @Override
-    public boolean isSuppressTextComponentConversionWarnings() {
-        return suppressTextComponentConversionWarnings && !Via.getManager().isDebug(); // Debug mode overrules config
+    public boolean logTextComponentConversionErrors() {
+        return logTextComponentConversionErrors || Via.getManager().isDebug();
     }
 
     @Override
@@ -555,5 +628,30 @@ public abstract class AbstractViaConfig extends Config implements ViaVersionConf
     @Override
     public boolean fix1_21PlacementRotation() {
         return fix1_21PlacementRotation;
+    }
+
+    @Override
+    public boolean cancelSwingInInventory() {
+        return cancelSwingInInventory;
+    }
+
+    @Override
+    public int maxErrorLength() {
+        return maxErrorLength;
+    }
+
+    @Override
+    public boolean use1_8HitboxMargin() {
+        return use1_8HitboxMargin;
+    }
+
+    @Override
+    public boolean sendPlayerDetails() {
+        return sendPlayerDetails;
+    }
+
+    @Override
+    public boolean sendServerDetails() {
+        return sendServerDetails;
     }
 }

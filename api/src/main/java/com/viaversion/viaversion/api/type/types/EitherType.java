@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,7 @@ import com.viaversion.viaversion.util.Either;
 import io.netty.buffer.ByteBuf;
 
 // Yuck - only use when necessary
-public final class EitherType<T, V> extends Type<Either<T, V>> {
+public class EitherType<T, V> extends Type<Either<T, V>> {
     private final Type<T> leftType;
     private final Type<V> rightType;
 

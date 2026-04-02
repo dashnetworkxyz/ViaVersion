@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,31 +21,20 @@ import com.viaversion.viaversion.api.minecraft.codec.CodecContext;
 import com.viaversion.viaversion.api.minecraft.data.StructuredDataKey;
 import com.viaversion.viaversion.api.protocol.Protocol;
 import com.viaversion.viaversion.api.type.types.version.VersionedTypesHolder;
-import com.viaversion.viaversion.util.SerializerVersion;
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import java.util.List;
 import java.util.Set;
 
-public record CodecRegistryContext(Protocol<?, ?, ?, ?> protocol, SerializerVersion serializerVersion,
-                                   SerializerVersion mappedSerializerVersion, RegistryAccess registryAccess,
+public record CodecRegistryContext(Protocol<?, ?, ?, ?> protocol, RegistryAccess registryAccess,
                                    boolean mapped) implements CodecContext {
 
     // Generally from hardcoded, but highly variable client data
     private static final Set<StructuredDataKey<?>> NOT_IMPLEMENTED = new ReferenceOpenHashSet<>(List.of(
-        StructuredDataKey.TRIM1_21_5, StructuredDataKey.TOOL1_21_5, StructuredDataKey.PROVIDES_TRIM_MATERIAL,
-        StructuredDataKey.CONSUMABLE1_21_2, StructuredDataKey.JUKEBOX_PLAYABLE1_21_5, StructuredDataKey.INSTRUMENT1_21_5,
-        StructuredDataKey.EQUIPPABLE1_21_5, StructuredDataKey.REPAIRABLE, StructuredDataKey.DEATH_PROTECTION,
-        StructuredDataKey.BLOCKS_ATTACKS, StructuredDataKey.SUSPICIOUS_STEW_EFFECTS,
-        StructuredDataKey.BANNER_PATTERNS, StructuredDataKey.POT_DECORATIONS, StructuredDataKey.BREAK_SOUND,
-        StructuredDataKey.WOLF_VARIANT, StructuredDataKey.WOLF_SOUND_VARIANT, StructuredDataKey.PIG_VARIANT,
-        StructuredDataKey.COW_VARIANT, StructuredDataKey.CHICKEN_VARIANT, StructuredDataKey.FROG_VARIANT,
-        StructuredDataKey.PAINTING_VARIANT, StructuredDataKey.CAT_VARIANT, StructuredDataKey.EQUIPPABLE1_21_6
+        StructuredDataKey.DAMAGE_TYPE1_21_11
     ));
 
-    public CodecRegistryContext(final Protocol<?, ?, ?, ?> protocol, final SerializerVersion serializerVersion, final SerializerVersion mappedSerializerVersion, final RegistryAccess registryAccess, final boolean mapped) {
+    public CodecRegistryContext(final Protocol<?, ?, ?, ?> protocol, final RegistryAccess registryAccess, final boolean mapped) {
         this.protocol = protocol;
-        this.serializerVersion = serializerVersion;
-        this.mappedSerializerVersion = mappedSerializerVersion;
         this.registryAccess = registryAccess.withMapped(mapped);
         this.mapped = mapped;
     }
@@ -57,6 +46,6 @@ public record CodecRegistryContext(Protocol<?, ?, ?, ?> protocol, SerializerVers
         }
 
         final VersionedTypesHolder types = mapped ? protocol.mappedTypes() : protocol.types();
-        return !NOT_IMPLEMENTED.contains(key) && types.structuredDataKeys().supportsOps(key);
+        return (NOT_IMPLEMENTED.isEmpty() || !NOT_IMPLEMENTED.contains(key)) && types.structuredDataKeys().supportsOps(key);
     }
 }

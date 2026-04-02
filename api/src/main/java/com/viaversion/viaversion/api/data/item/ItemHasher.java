@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,8 +22,6 @@
  */
 package com.viaversion.viaversion.api.data.item;
 
-import java.util.List;
-
 /**
  * Used for converting items to hashed items and caching them for later use during serverbound packets.
  * <p>
@@ -41,11 +39,4 @@ public interface ItemHasher {
     boolean isProcessingClientboundInventoryPacket();
 
     void setProcessingClientboundInventoryPacket(boolean processingClientboundInventoryPacket);
-
-    /**
-     * Sets the enchantment registry for this connection.
-     *
-     * @param enchantments list of enchantment identifiers
-     */
-    void setEnchantments(List<String> enchantments);
 }

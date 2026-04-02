@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,152 +23,232 @@
 package com.viaversion.viaversion.api.protocol.packet;
 
 import com.viaversion.viaversion.api.Via;
+import com.viaversion.viaversion.api.configuration.RateLimitConfig;
 import com.viaversion.viaversion.api.configuration.ViaVersionConfig;
 import com.viaversion.viaversion.api.connection.UserConnection;
+import com.viaversion.viaversion.util.MathUtil;
+import java.util.Arrays;
 
+/**
+ * Tracks packet count/packet size.
+ * <p>
+ * Every second, the current rate of that second is put into a sliding window to be checked against a sustained max rate.
+ * After a sufficient amount of hits to the max rate during a configured time period, a connection will be kicked.
+ * <p>
+ * Next to the sustained tracking, the current count per second is also constantly checked against its respective max rate per second.
+ */
 public class PacketTracker {
-    private final UserConnection connection;
+    private static final long SECOND_NANOS = 1_000_000_000L;
+
+    private final RateTracker packetTracker = new RateTracker(5);
+    private final RateTracker packetSizeTracker = new RateTracker(3);
+    private long startTime = System.nanoTime();
     private boolean packetLimiterEnabled = true;
-    private long sentPackets;
-    private long receivedPackets;
-    // Used for tracking pps
-    private long startTime;
-    private long intervalPackets;
-    private long packetsPerSecond = -1L;
-    // Used for handling warnings (over time)
-    private int secondsObserved;
-    private int warnings;
+    private final UserConnection connection;
+    private long sentPacketsTotal;
+    private long receivedPacketsTotal;
 
     public PacketTracker(UserConnection connection) {
         this.connection = connection;
     }
 
     /**
-     * Used for incrementing the number of packets sent to the client.
+     * Increments the number of packets sent to the client.
      */
     public void incrementSent() {
-        this.sentPackets++;
+        this.sentPacketsTotal++;
     }
 
-    /**
-     * Used for incrementing the number of packets received from the client.
-     *
-     * @return true if the interval has reset and can now be checked for the packets sent
-     */
+    @Deprecated(forRemoval = true)
     public boolean incrementReceived() {
-        // handle stats
-        long diff = System.currentTimeMillis() - startTime;
-        if (diff >= 1000) {
-            packetsPerSecond = intervalPackets;
-            startTime = System.currentTimeMillis();
-            intervalPackets = 1;
-            return true;
-        } else {
-            intervalPackets++;
-        }
-        // increase total
-        this.receivedPackets++;
-        return false;
+        return incrementReceived(0);
     }
 
     /**
-     * Checks for packet flood with the packets sent in the last second.
-     * ALWAYS check for {@link #incrementReceived()} before using this method.
+     * Increments the number of packets and packet size received by clients.
+     * This is either added to the current second, or processed into the rate over multiple seconds.
      *
-     * @return true if the packet should be cancelled
-     * @see #incrementReceived()
+     * @return true if the interval has reset after a second has passed since the last update
      */
-    public boolean exceedsMaxPPS() {
-        if (connection.isClientSide()) return false; // Don't apply PPS limiting for client-side
-        ViaVersionConfig conf = Via.getConfig();
-        // Max PPS Checker
-        if (conf.getMaxPPS() > 0 && packetsPerSecond >= conf.getMaxPPS()) {
-            connection.disconnect(conf.getMaxPPSKickMessage().replace("%pps", Long.toString(packetsPerSecond)));
-            return true; // don't send current packet
-        }
+    public boolean incrementReceived(int packetSize) {
+        receivedPacketsTotal++;
 
-        // Tracking PPS Checker
-        if (conf.getMaxWarnings() > 0 && conf.getTrackingPeriod() > 0) {
-            if (secondsObserved > conf.getTrackingPeriod()) {
-                // Reset
-                warnings = 0;
-                secondsObserved = 1;
-            } else {
-                secondsObserved++;
-                if (packetsPerSecond >= conf.getWarningPPS()) {
-                    warnings++;
-                }
-
-                if (warnings >= conf.getMaxWarnings()) {
-                    connection.disconnect(conf.getMaxWarningsKickMessage().replace("%pps", Long.toString(packetsPerSecond)));
-                    return true; // don't send current packet
-                }
+        ViaVersionConfig config = Via.getConfig();
+        long currentTime = System.nanoTime();
+        long elapsed = currentTime - startTime;
+        if (elapsed < SECOND_NANOS) {
+            // Add to current interval
+            if (config.getPacketTrackerConfig().enabled()) {
+                packetTracker.add(1);
             }
+            if (config.getPacketSizeTrackerConfig().enabled()) {
+                packetSizeTracker.add(packetSize);
+            }
+            return false;
         }
-        return false;
+
+        // Update interval tracking every second
+        if (config.getPacketTrackerConfig().enabled()) {
+            packetTracker.updateRate(elapsed);
+            packetTracker.add(1);
+        }
+        if (config.getPacketSizeTrackerConfig().enabled()) {
+            packetSizeTracker.updateRate(elapsed);
+            packetSizeTracker.add(packetSize);
+        }
+        startTime = currentTime;
+        return true;
+    }
+
+    public boolean exceedsLimits() {
+        if (connection.isClientSide()) {
+            return false;
+        }
+
+        ViaVersionConfig config = Via.getConfig();
+        return packetTracker.exceedsLimit(connection, config.getPacketTrackerConfig())
+            || packetSizeTracker.exceedsLimit(connection, config.getPacketSizeTrackerConfig());
     }
 
     public long getSentPackets() {
-        return sentPackets;
+        return sentPacketsTotal;
     }
 
+    @Deprecated(forRemoval = true)
     public void setSentPackets(long sentPackets) {
-        this.sentPackets = sentPackets;
+        this.sentPacketsTotal = sentPackets;
     }
 
     public long getReceivedPackets() {
-        return receivedPackets;
+        return receivedPacketsTotal;
     }
 
+    @Deprecated(forRemoval = true)
     public void setReceivedPackets(long receivedPackets) {
-        this.receivedPackets = receivedPackets;
-    }
-
-    public long getStartTime() {
-        return startTime;
-    }
-
-    public void setStartTime(long startTime) {
-        this.startTime = startTime;
+        this.receivedPacketsTotal = receivedPackets;
     }
 
     public long getIntervalPackets() {
-        return intervalPackets;
+        return this.packetTracker.count;
     }
 
     public void setIntervalPackets(long intervalPackets) {
-        this.intervalPackets = intervalPackets;
+        this.packetTracker.count = intervalPackets;
     }
 
-    public long getPacketsPerSecond() {
-        return packetsPerSecond;
-    }
-
-    public void setPacketsPerSecond(long packetsPerSecond) {
-        this.packetsPerSecond = packetsPerSecond;
-    }
-
-    public int getSecondsObserved() {
-        return secondsObserved;
-    }
-
-    public void setSecondsObserved(int secondsObserved) {
-        this.secondsObserved = secondsObserved;
-    }
-
-    public int getWarnings() {
-        return warnings;
-    }
-
-    public void setWarnings(int warnings) {
-        this.warnings = warnings;
+    public int getPacketsPerSecond() {
+        return packetTracker.smoothedRate;
     }
 
     public boolean isPacketLimiterEnabled() {
-        return packetLimiterEnabled;
+        ViaVersionConfig config = Via.getConfig();
+        return packetLimiterEnabled && (config.getPacketTrackerConfig().enabled() || config.getPacketSizeTrackerConfig().enabled());
     }
 
     public void setPacketLimiterEnabled(boolean packetLimiterEnabled) {
         this.packetLimiterEnabled = packetLimiterEnabled;
+    }
+
+    @Deprecated(forRemoval = true)
+    public void setWarnings(int warnings) {
+        this.packetTracker.warnings = warnings;
+    }
+
+    private static final class RateTracker {
+        private final int[] history;
+        private int historyIndex;
+        private int historyCount;
+        private int smoothedRate = -1;
+
+        // Accumulated counter for the current second
+        private long count;
+
+        // Warning system
+        private long warningPeriodStart = System.nanoTime();
+        private long lastWarning = Long.MIN_VALUE;
+        private int warnings;
+
+        public RateTracker(int windowSize) {
+            this.history = new int[windowSize];
+        }
+
+        public void add(int value) {
+            count += value;
+        }
+
+        public void updateRate(long elapsedNanos) {
+            // Update sliding window
+            final long rate = (count * SECOND_NANOS) / elapsedNanos;
+            history[historyIndex] = (int) MathUtil.clamp(rate, 0, Integer.MAX_VALUE);
+            historyIndex = (historyIndex + 1) % history.length;
+            if (historyCount < history.length) {
+                historyCount++;
+            }
+
+            // Calculate smoothed average
+            long sum = 0;
+            for (int i = 0; i < historyCount; i++) {
+                sum += history[i];
+            }
+
+            smoothedRate = (int) (sum / historyCount);
+            count = 0; // Reset
+        }
+
+        public boolean exceedsLimit(UserConnection connection, RateLimitConfig limitConfig) {
+            if (!limitConfig.enabled()) {
+                return false;
+            }
+
+            // Immediate limit check
+            if (limitConfig.maxRate() > 0 && count >= limitConfig.maxRate()) {
+                connection.disconnect(limitConfig.maxRateKickMessage().replace(limitConfig.ratePlaceholder(), Long.toString(count)));
+                return true;
+            }
+
+            // Sustained rate warnings
+            if (limitConfig.maxWarnings() > 0 && limitConfig.trackingPeriodNanos() > 0 && limitConfig.warningRate() > 0) {
+                return checkTrackedInterval(connection, limitConfig);
+            }
+
+            return false;
+        }
+
+        private boolean checkTrackedInterval(UserConnection connection, RateLimitConfig config) {
+            long currentTime = System.nanoTime();
+            if (currentTime - warningPeriodStart >= config.trackingPeriodNanos()) {
+                // Reset the number of warnings
+                warnings = 0;
+                warningPeriodStart = currentTime;
+            }
+
+            if (smoothedRate >= config.warningRate() && currentTime - lastWarning >= SECOND_NANOS) {
+                // Add a warning if there hasn't already been one added during the last second
+                lastWarning = currentTime;
+                if (++warnings >= config.maxWarnings()) {
+                    connection.disconnect(config.warningKickMessage().replace(config.ratePlaceholder(), Integer.toString(smoothedRate)));
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public void reset() {
+            count = 0;
+            smoothedRate = -1;
+            warnings = 0;
+            warningPeriodStart = System.nanoTime();
+            historyIndex = 0;
+            historyCount = 0;
+            Arrays.fill(history, 0);
+        }
+    }
+
+    public void reset() {
+        sentPacketsTotal = 0;
+        receivedPacketsTotal = 0;
+        startTime = System.nanoTime();
+        packetTracker.reset();
+        packetSizeTracker.reset();
     }
 }

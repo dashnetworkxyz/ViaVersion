@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,11 @@ import java.util.Map;
 import java.util.UUID;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public record GameProfile(@Nullable String name, @Nullable UUID id, Property[] properties) {
+public record GameProfile(@Nullable String name, @Nullable UUID id, Property[] properties, boolean dynamic) {
+
+    public GameProfile(@Nullable final String name, @Nullable final UUID id, final Property[] properties) {
+        this(name, id, properties, true);
+    }
 
     public GameProfile(@Nullable final String name, @Nullable final UUID id) {
         this(name, id, new Property[0]);

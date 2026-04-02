@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -97,31 +97,31 @@ public class ParticleType extends DynamicType<Particle> {
         public static final DataReader<Particle> VIBRATION = (buf, particle) -> {
             particle.add(Types.BLOCK_POSITION1_14, Types.BLOCK_POSITION1_14.read(buf)); // From block pos
 
-            String resourceLocation = Types.STRING.read(buf);
-            particle.add(Types.STRING, resourceLocation);
+            String identifier = Types.STRING.read(buf);
+            particle.add(Types.STRING, identifier);
 
-            resourceLocation = Key.stripMinecraftNamespace(resourceLocation);
-            if (resourceLocation.equals("block")) {
+            identifier = Key.stripMinecraftNamespace(identifier);
+            if (identifier.equals("block")) {
                 particle.add(Types.BLOCK_POSITION1_14, Types.BLOCK_POSITION1_14.read(buf)); // Target block pos
-            } else if (resourceLocation.equals("entity")) {
+            } else if (identifier.equals("entity")) {
                 particle.add(Types.VAR_INT, Types.VAR_INT.readPrimitive(buf)); // Target entity
             } else {
-                Via.getPlatform().getLogger().warning("Unknown vibration path position source type: " + resourceLocation);
+                Via.getPlatform().getLogger().warning("Unknown vibration path position source type: " + identifier);
             }
             particle.add(Types.VAR_INT, Types.VAR_INT.readPrimitive(buf)); // Arrival in ticks
         };
         public static final DataReader<Particle> VIBRATION1_19 = (buf, particle) -> {
-            String resourceLocation = Types.STRING.read(buf);
-            particle.add(Types.STRING, resourceLocation);
+            String identifier = Types.STRING.read(buf);
+            particle.add(Types.STRING, identifier);
 
-            resourceLocation = Key.stripMinecraftNamespace(resourceLocation);
-            if (resourceLocation.equals("block")) {
+            identifier = Key.stripMinecraftNamespace(identifier);
+            if (identifier.equals("block")) {
                 particle.add(Types.BLOCK_POSITION1_14, Types.BLOCK_POSITION1_14.read(buf)); // Target block pos
-            } else if (resourceLocation.equals("entity")) {
+            } else if (identifier.equals("entity")) {
                 particle.add(Types.VAR_INT, Types.VAR_INT.readPrimitive(buf)); // Target entity
                 particle.add(Types.FLOAT, Types.FLOAT.readPrimitive(buf)); // Y offset
             } else {
-                Via.getPlatform().getLogger().warning("Unknown vibration path position source type: " + resourceLocation);
+                Via.getPlatform().getLogger().warning("Unknown vibration path position source type: " + identifier);
             }
             particle.add(Types.VAR_INT, Types.VAR_INT.readPrimitive(buf)); // Arrival in ticks
         };
@@ -159,6 +159,13 @@ public class ParticleType extends DynamicType<Particle> {
             particle.add(Types.DOUBLE, Types.DOUBLE.readPrimitive(buf)); // Target Z
             particle.add(Types.INT, Types.INT.readPrimitive(buf)); // Color
             particle.add(Types.VAR_INT, Types.VAR_INT.readPrimitive(buf)); // Duration
+        };
+        public static final DataReader<Particle> POWER = (buf, particle) -> {
+            particle.add(Types.FLOAT, Types.FLOAT.readPrimitive(buf));
+        };
+        public static final DataReader<Particle> SPELL = (buf, particle) -> {
+            particle.add(Types.INT, Types.INT.readPrimitive(buf)); // Color
+            particle.add(Types.FLOAT, Types.FLOAT.readPrimitive(buf)); // Power
         };
 
         public static DataReader<Particle> item(Type<Item> item) {

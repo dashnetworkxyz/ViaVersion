@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ import com.viaversion.viaversion.protocols.v1_20_2to1_20_3.rewriter.RecipeRewrit
 import java.util.ArrayList;
 import java.util.List;
 
-final class RecipeRewriter1_20_5 <C extends ClientboundPacketType> extends RecipeRewriter1_20_3<C> {
+final class RecipeRewriter1_20_5<C extends ClientboundPacketType> extends RecipeRewriter1_20_3<C> {
 
     public RecipeRewriter1_20_5(final Protocol<C, ?, ?, ?> protocol) {
         super(protocol);

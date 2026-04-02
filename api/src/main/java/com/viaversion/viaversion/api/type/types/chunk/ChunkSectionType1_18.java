@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,15 +25,14 @@ package com.viaversion.viaversion.api.type.types.chunk;
 import com.viaversion.viaversion.api.minecraft.chunks.Chunk;
 import com.viaversion.viaversion.api.minecraft.chunks.ChunkSection;
 import com.viaversion.viaversion.api.minecraft.chunks.ChunkSectionImpl;
-import com.viaversion.viaversion.api.minecraft.chunks.DataPalette;
 import com.viaversion.viaversion.api.minecraft.chunks.PaletteType;
 import com.viaversion.viaversion.api.type.Type;
 import io.netty.buffer.ByteBuf;
 
 public class ChunkSectionType1_18 extends Type<ChunkSection> {
 
-    private final PaletteTypeBase blockPaletteType;
-    private final PaletteTypeBase biomePaletteType;
+    protected final PaletteTypeBase blockPaletteType;
+    protected final PaletteTypeBase biomePaletteType;
 
     public ChunkSectionType1_18(final int globalPaletteBlockBits, final int globalPaletteBiomeBits) {
         super(ChunkSection.class);

@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ public class ConnectionManagerImpl implements ConnectionManager {
 
     protected final Map<UUID, UserConnection> serverConnections = new ConcurrentHashMap<>();
     protected final Map<UUID, UserConnection> clientConnections = new ConcurrentHashMap<>();
-    protected final Set<UserConnection> connections = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    protected final Set<UserConnection> connections = ConcurrentHashMap.newKeySet();
 
     @Override
     public void onLoginSuccess(UserConnection connection) {
@@ -72,16 +72,20 @@ public class ConnectionManagerImpl implements ConnectionManager {
     @Override
     public void onDisconnect(UserConnection connection) {
         Objects.requireNonNull(connection, "connection is null!");
+        connection.setActive(false);
+
         connections.remove(connection);
 
         UUID id = connection.getProtocolInfo().getUuid();
         if (connection.isServerSide()) {
-            serverConnections.remove(id);
+            serverConnections.remove(id, connection);
         } else {
-            clientConnections.remove(id);
+            clientConnections.remove(id, connection);
         }
 
-        connection.clearStoredObjects();
+        // There might be a packet still going through the handlers after we set the connection as inactive
+        // Make sure that we remove stored objects after those have been handled, otherwise this might introduce NPEs
+        connection.getChannel().eventLoop().execute(connection::clearStoredObjects);
     }
 
     @Override

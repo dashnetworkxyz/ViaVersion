@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ import com.viaversion.viaversion.api.type.TypeConverter;
 import com.viaversion.viaversion.api.type.Types;
 import com.viaversion.viaversion.exception.CancelException;
 import com.viaversion.viaversion.exception.InformativeException;
+import com.viaversion.viaversion.util.ArrayUtil;
 import com.viaversion.viaversion.util.PipelineUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
@@ -307,7 +308,7 @@ public class PacketWrapperImpl implements PacketWrapper {
         if (currentThread) {
             sendNow(protocol, skipCurrentPipeline);
         } else {
-            connection.getChannel().eventLoop().submit(() -> sendNow(protocol, skipCurrentPipeline));
+            connection.getChannel().eventLoop().execute(() -> sendNow(protocol, skipCurrentPipeline));
         }
     }
 
@@ -429,6 +430,18 @@ public class PacketWrapperImpl implements PacketWrapper {
     }
 
     @Override
+    public PacketWrapperImpl create(final PacketType packetType) {
+        return new PacketWrapperImpl(packetType, null, user());
+    }
+
+    @Override
+    public PacketWrapperImpl create(final PacketType packetType, final PacketHandler handler) throws InformativeException {
+        PacketWrapperImpl wrapper = create(packetType);
+        handler.handle(wrapper);
+        return wrapper;
+    }
+
+    @Override
     public void apply(Direction direction, State state, List<Protocol> pipeline) throws InformativeException, CancelException {
         // Indexed loop to allow additions to the tail
         for (int i = 0, size = pipeline.size(); i < size; i++) {
@@ -463,6 +476,19 @@ public class PacketWrapperImpl implements PacketWrapper {
             this.readableObjects.addFirst(this.packetValues.get(i));
         }
         this.packetValues.clear();
+    }
+
+    @Override
+    public void rewindReader(final int values) {
+        if (allActionsRead) {
+            return;
+        }
+
+        final int size = packetValues.size();
+        Preconditions.checkArgument(values <= size, "Tried resetting more values than there are readable values");
+        for (int i = size - 1; i >= size - values; i--) {
+            this.readableObjects.addFirst(this.packetValues.remove(i));
+        }
     }
 
     @Override
@@ -524,7 +550,7 @@ public class PacketWrapperImpl implements PacketWrapper {
             return;
         }
 
-        connection.getChannel().eventLoop().submit(() -> {
+        connection.getChannel().eventLoop().execute(() -> {
             try {
                 final ByteBuf output = constructPacket(protocol, skipCurrentPipeline, Direction.SERVERBOUND);
                 connection.sendRawPacketToServer(output);
@@ -569,6 +595,17 @@ public class PacketWrapperImpl implements PacketWrapper {
 
     public void setAllActionsRead(final boolean allActionsRead) {
         this.allActionsRead = allActionsRead;
+    }
+
+    @Override
+    public void consumeReadsOnly(final Runnable runnable) {
+        final boolean previous = this.allActionsRead;
+        this.allActionsRead = true;
+        try {
+            runnable.run();
+        } finally {
+            this.allActionsRead = previous;
+        }
     }
 
     @Override
@@ -624,7 +661,7 @@ public class PacketWrapperImpl implements PacketWrapper {
 
         @Override
         public String toString() {
-            return "{" + type + ": " + value + "}";
+            return "{" + type + ": " + ArrayUtil.toString(value) + "}";
         }
     }
 }

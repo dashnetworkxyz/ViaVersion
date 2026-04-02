@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@ import com.viaversion.viaversion.api.connection.ProtocolInfo;
 import com.viaversion.viaversion.api.connection.UserConnection;
 import com.viaversion.viaversion.api.data.MappingData;
 import com.viaversion.viaversion.api.data.MappingDataBase;
+import com.viaversion.viaversion.api.minecraft.RegistryType;
+import com.viaversion.viaversion.api.minecraft.TagData;
 import com.viaversion.viaversion.api.minecraft.entities.EntityTypes1_19_4;
 import com.viaversion.viaversion.api.protocol.AbstractProtocol;
 import com.viaversion.viaversion.api.protocol.packet.Direction;
@@ -57,6 +59,8 @@ import com.viaversion.viaversion.rewriter.ParticleRewriter;
 import com.viaversion.viaversion.rewriter.SoundRewriter;
 import com.viaversion.viaversion.rewriter.TagRewriter;
 import com.viaversion.viaversion.util.Key;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -239,6 +243,14 @@ public final class Protocol1_20To1_20_2 extends AbstractProtocol<ClientboundPack
         if (channel.equals("minecraft:brand")) {
             wrapper.passthrough(Types.STRING);
             wrapper.clearInputBuffer();
+        } else if (channel.equals("minecraft:debug/game_test_add_marker")) {
+            wrapper.passthrough(Types.BLOCK_POSITION1_14);
+            wrapper.passthrough(Types.INT);
+            wrapper.passthrough(Types.STRING);
+            wrapper.passthrough(Types.INT);
+            wrapper.clearInputBuffer();
+        } else if (channel.equals("minecraft:debug/game_test_clear")) {
+            wrapper.clearInputBuffer();
         }
     }
 
@@ -282,11 +294,15 @@ public final class Protocol1_20To1_20_2 extends AbstractProtocol<ClientboundPack
             }
 
             if (configurationBridge.queuedOrSentJoinGame()) {
-                if (!packetWrapper.user().isClientSide() && !Via.getPlatform().isProxy() && unmappedId == ClientboundPackets1_19_4.SYSTEM_CHAT.getId()) {
-                    // Cancelling this on the Vanilla server will cause it to exceptionally resend a message
-                    // Assume that we have already sent the login packet and just let it through
-                    super.transform(direction, State.PLAY, packetWrapper);
-                    return;
+                final ProtocolVersion serverProtocolVersion = Via.getAPI().getServerVersion().lowestSupportedProtocolVersion();
+
+                if (serverProtocolVersion.newerThanOrEqualTo(ProtocolVersion.v1_13)) {
+                    if (!packetWrapper.user().isClientSide() && !Via.getPlatform().isProxy() && unmappedId == ClientboundPackets1_19_4.SYSTEM_CHAT.getId()) {
+                        // Cancelling this on a 1.13+ Vanilla server will cause it to exceptionally resend a message
+                        // Assume that we have already sent the login packet and just let it through
+                        super.transform(direction, State.PLAY, packetWrapper);
+                        return;
+                    }
                 }
 
                 configurationBridge.addPacketToQueue(packetWrapper, true);
@@ -332,13 +348,22 @@ public final class Protocol1_20To1_20_2 extends AbstractProtocol<ClientboundPack
         // The client includes vanilla as the default feature when initially leaving the login phase
 
         final LastTags lastTags = connection.get(LastTags.class);
+        boolean sentTags = false;
         if (lastTags != null) {
             if (lastTags.sentDuringConfigPhase()) {
                 lastTags.setSentDuringConfigPhase(false);
+                sentTags = true;
             } else {
                 // The server might still follow up with a tags packet, but we wouldn't know
-                lastTags.sendLastTags(connection);
+                sentTags = lastTags.sendLastTags(connection);
             }
+        }
+
+        if (!sentTags) {
+            // Send an empty tags packet to allow adding to it in later protocols
+            final PacketWrapper packet = PacketWrapper.create(ClientboundConfigurationPackets1_20_2.UPDATE_TAGS, connection);
+            packet.write(Types.VAR_INT, 0);
+            packet.send(Protocol1_20To1_20_2.class);
         }
 
         if (lastResourcePack != null && connection.getProtocolInfo().protocolVersion() == ProtocolVersion.v1_20_2) {

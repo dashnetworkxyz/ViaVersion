@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,16 +39,18 @@ import com.viaversion.viaversion.protocols.v1_13_2to1_14.rewriter.PlayerPacketRe
 import com.viaversion.viaversion.protocols.v1_13_2to1_14.rewriter.WorldPacketRewriter1_14;
 import com.viaversion.viaversion.protocols.v1_13_2to1_14.storage.EntityTracker1_14;
 import com.viaversion.viaversion.rewriter.CommandRewriter;
-import com.viaversion.viaversion.rewriter.text.JsonNBTComponentRewriter;
 import com.viaversion.viaversion.rewriter.ParticleRewriter;
 import com.viaversion.viaversion.rewriter.SoundRewriter;
 import com.viaversion.viaversion.rewriter.StatisticsRewriter;
 import com.viaversion.viaversion.rewriter.TagRewriter;
+import com.viaversion.viaversion.rewriter.text.JsonNBTComponentRewriter;
+import com.viaversion.viaversion.util.ProtocolLogger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class Protocol1_13_2To1_14 extends AbstractProtocol<ClientboundPackets1_13, ClientboundPackets1_14, ServerboundPackets1_13, ServerboundPackets1_14> {
 
     public static final MappingData1_14 MAPPINGS = new MappingData1_14();
+    public static final ProtocolLogger LOGGER = new ProtocolLogger(Protocol1_13_2To1_14.class);
     private final EntityPacketRewriter1_14 entityRewriter = new EntityPacketRewriter1_14(this);
     private final ItemPacketRewriter1_14 itemRewriter = new ItemPacketRewriter1_14(this);
     private final ParticleRewriter<ClientboundPackets1_13> particleRewriter = new ParticleRewriter<>(this);
@@ -132,6 +134,11 @@ public class Protocol1_13_2To1_14 extends AbstractProtocol<ClientboundPackets1_1
     @Override
     public MappingData1_14 getMappingData() {
         return MAPPINGS;
+    }
+
+    @Override
+    public ProtocolLogger getLogger() {
+        return LOGGER;
     }
 
     @Override

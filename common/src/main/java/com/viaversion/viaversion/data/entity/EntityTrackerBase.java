@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@ public class EntityTrackerBase implements EntityTracker, ClientEntityIdChangeLis
     private int currentWorldSectionHeight = -1;
     private int currentMinY;
     private String currentWorld;
+    private int currentDimensionId = -1;
     private int biomesSent = -1;
     private Map<String, DimensionData> dimensions = Collections.emptyMap();
     private boolean instaBuild;
@@ -104,6 +105,16 @@ public class EntityTrackerBase implements EntityTracker, ClientEntityIdChangeLis
         if (clientEntityId != null) {
             entities.put(clientEntityId.intValue(), new TrackedEntityImpl(playerType));
         }
+    }
+
+    @Override
+    public void clear() {
+        // Call wrapper function in case protocols need to do additional removals
+        for (final int id : entities.keySet().toIntArray()) {
+            removeEntity(id);
+        }
+
+        clientEntityId = null;
     }
 
     @Override
@@ -173,6 +184,16 @@ public class EntityTrackerBase implements EntityTracker, ClientEntityIdChangeLis
     }
 
     @Override
+    public int currentDimensionId() {
+        return currentDimensionId;
+    }
+
+    @Override
+    public void setCurrentDimensionId(final int currentDimensionId) {
+        this.currentDimensionId = currentDimensionId;
+    }
+
+    @Override
     public int biomesSent() {
         return biomesSent;
     }
@@ -194,7 +215,7 @@ public class EntityTrackerBase implements EntityTracker, ClientEntityIdChangeLis
 
     @Override
     public @Nullable DimensionData dimensionData(int dimensionId) {
-        return dimensions.values().stream().filter(data -> data.id() == dimensionId).findFirst().orElse(null); // TODO Store as array as well
+        return dimensions.values().stream().filter(data -> data.id() == dimensionId).findFirst().orElse(null);
     }
 
     @Override

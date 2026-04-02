@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,7 @@ package com.viaversion.viaversion.api.minecraft.item.data;
 
 import com.viaversion.viaversion.api.connection.UserConnection;
 import com.viaversion.viaversion.api.minecraft.Holder;
+import com.viaversion.viaversion.api.minecraft.codec.Ops;
 import com.viaversion.viaversion.api.protocol.Protocol;
 import com.viaversion.viaversion.api.type.Type;
 import com.viaversion.viaversion.util.Rewritable;
@@ -96,6 +97,13 @@ public record ArmorTrim(Holder<ArmorTrimMaterial> material, Holder<ArmorTrimPatt
         public void write(final ByteBuf buffer, final ArmorTrim value) {
             ArmorTrimMaterial.TYPE1_21_5.write(buffer, value.material);
             ArmorTrimPattern.TYPE1_21_5.write(buffer, value.pattern);
+        }
+
+        @Override
+        public void write(final Ops ops, final ArmorTrim value) {
+            ops.writeMap(map -> map
+                .write("material", ArmorTrimMaterial.TYPE1_21_5, value.material)
+                .write("pattern", ArmorTrimPattern.TYPE1_21_5, value.pattern));
         }
     };
 

@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,33 +18,15 @@
 package com.viaversion.viaversion.bukkit.platform;
 
 import com.viaversion.viaversion.ViaAPIBase;
-import com.viaversion.viaversion.ViaVersionPlugin;
-import com.viaversion.viaversion.api.Via;
-import com.viaversion.viaversion.api.connection.UserConnection;
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
 import io.netty.buffer.ByteBuf;
-import java.util.UUID;
 import org.bukkit.entity.Player;
 
 public class BukkitViaAPI extends ViaAPIBase<Player> {
-    private final ViaVersionPlugin plugin;
-
-    public BukkitViaAPI(ViaVersionPlugin plugin) {
-        this.plugin = plugin;
-    }
 
     @Override
     public ProtocolVersion getPlayerProtocolVersion(Player player) {
         return getPlayerProtocolVersion(player.getUniqueId());
-    }
-
-    @Override
-    public ProtocolVersion getPlayerProtocolVersion(UUID uuid) {
-        UserConnection connection = Via.getManager().getConnectionManager().getServerConnection(uuid);
-        if (connection != null) {
-            return connection.getProtocolInfo().protocolVersion();
-        }
-        return ProtocolVersion.unknown;
     }
 
     @Override

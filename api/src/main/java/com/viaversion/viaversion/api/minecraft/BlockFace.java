@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,7 +33,6 @@ public enum BlockFace {
     TOP((byte) 0, (byte) 1, (byte) 0, EnumAxis.Y),
     BOTTOM((byte) 0, (byte) -1, (byte) 0, EnumAxis.Y);
 
-    public static final BlockFace[] HORIZONTAL = {NORTH, SOUTH, EAST, WEST};
     private static final Map<BlockFace, BlockFace> opposites = new EnumMap<>(BlockFace.class);
 
     static {

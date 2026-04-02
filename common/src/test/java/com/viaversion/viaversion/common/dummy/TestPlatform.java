@@ -17,24 +17,14 @@
  */
 package com.viaversion.viaversion.common.dummy;
 
-import com.viaversion.viaversion.ViaAPIBase;
-import com.viaversion.viaversion.api.ViaAPI;
-import com.viaversion.viaversion.api.configuration.ViaVersionConfig;
-import com.viaversion.viaversion.api.platform.PlatformTask;
-import com.viaversion.viaversion.api.platform.ViaPlatform;
-import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
-import io.netty.buffer.ByteBuf;
-import java.io.File;
+import com.viaversion.viaversion.configuration.AbstractViaConfig;
+import com.viaversion.viaversion.platform.UserConnectionViaVersionPlatform;
 import java.util.logging.Logger;
 
-public final class TestPlatform implements ViaPlatform {
+public final class TestPlatform extends UserConnectionViaVersionPlatform {
 
-    private static final Logger log = Logger.getGlobal();
-    private final TestConfig testConfig = new TestConfig(null, log);
-
-    @Override
-    public Logger getLogger() {
-        return log;
+    public TestPlatform() {
+        super(null);
     }
 
     @Override
@@ -48,66 +38,16 @@ public final class TestPlatform implements ViaPlatform {
     }
 
     @Override
-    public String getPluginVersion() {
-        return "test";
+    public Logger createLogger(final String name) {
+        return Logger.getGlobal();
     }
 
     @Override
-    public PlatformTask runAsync(Runnable runnable) {
-        return null;
-    }
-
-    @Override
-    public PlatformTask runRepeatingAsync(final Runnable runnable, final long ticks) {
-        return null;
-    }
-
-    @Override
-    public PlatformTask runSync(Runnable runnable) {
-        return null;
-    }
-
-    @Override
-    public PlatformTask runSync(Runnable runnable, long delay) {
-        return null;
-    }
-
-    @Override
-    public PlatformTask runRepeatingSync(Runnable runnable, long period) {
-        return null;
-    }
-
-    @Override
-    public ViaAPI getApi() {
-        return new ViaAPIBase() {
+    protected AbstractViaConfig createConfig() {
+        return new AbstractViaConfig(null, null) {
             @Override
-            public ProtocolVersion getPlayerProtocolVersion(Object player) {
-                return ProtocolVersion.unknown;
-            }
-
-            @Override
-            public void sendRawPacket(Object player, ByteBuf packet) {
+            public void reload() {
             }
         };
-    }
-
-    @Override
-    public ViaVersionConfig getConf() {
-        return testConfig;
-    }
-
-    @Override
-    public File getDataFolder() {
-        return null;
-    }
-
-    @Override
-    public boolean hasPlugin(final String name) {
-        return false;
-    }
-
-    @Override
-    public boolean couldBeReloading() {
-        return false;
     }
 }

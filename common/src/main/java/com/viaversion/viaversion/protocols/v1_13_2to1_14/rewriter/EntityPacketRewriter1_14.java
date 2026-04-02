@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -337,11 +337,11 @@ public class EntityPacketRewriter1_14 extends EntityRewriter<ClientboundPackets1
         });
 
         filter().type(EntityTypes1_14.VILLAGER).index(15).handler((event, data) -> {
-            data.setTypeAndValue(Types1_14.ENTITY_DATA_TYPES.villagerDatatType, new VillagerData(2, getNewProfessionId(data.value()), 0));
+            data.setTypeAndValue(Types1_14.ENTITY_DATA_TYPES.villagerDataType, new VillagerData(2, getNewProfessionId(data.value()), 0));
         });
 
         filter().type(EntityTypes1_14.ZOMBIE_VILLAGER).index(18).handler((event, data) -> {
-            data.setTypeAndValue(Types1_14.ENTITY_DATA_TYPES.villagerDatatType, new VillagerData(2, getNewProfessionId(data.value()), 0));
+            data.setTypeAndValue(Types1_14.ENTITY_DATA_TYPES.villagerDataType, new VillagerData(2, getNewProfessionId(data.value()), 0));
         });
 
         filter().type(EntityTypes1_14.ABSTRACT_ARROW).addIndex(9); // Piercing level added

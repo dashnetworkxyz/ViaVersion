@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -182,7 +182,7 @@ public class HashOps extends OpsBase implements Hasher {
             final ListHashBuilder listHasher = hasher.new ListHashBuilder();
             consumer.accept(listHasher);
             listHasher.applyHashToParent();
-            return HashOps.this.hash();
+            return hasher.hash();
         }
 
         protected int mapHash(final Consumer<MapSerializer> consumer) {
@@ -190,7 +190,7 @@ public class HashOps extends OpsBase implements Hasher {
             final MapHashBuilder mapHasher = hasher.new MapHashBuilder();
             consumer.accept(mapHasher);
             mapHasher.applyHashToParent();
-            return HashOps.this.hash();
+            return hasher.hash();
         }
 
         protected <V> int hash(final Type<V> type, final V value) {

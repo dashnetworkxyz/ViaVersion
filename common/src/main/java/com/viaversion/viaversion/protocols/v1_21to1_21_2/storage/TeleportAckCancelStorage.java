@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,9 +24,23 @@ import it.unimi.dsi.fastutil.ints.IntSet;
 public class TeleportAckCancelStorage implements StorableObject {
 
     private final IntSet cancelTeleportIds = new IntOpenHashSet();
+    private boolean cancelNextPlayerPositionPacket;
 
     public boolean checkShouldCancelTeleportAck(final int teleportId) {
-        return this.cancelTeleportIds.remove(teleportId);
+        final boolean shouldCancel = this.cancelTeleportIds.remove(teleportId);
+        if (shouldCancel) {
+            this.cancelNextPlayerPositionPacket = true;
+        }
+        return shouldCancel;
+    }
+
+    public boolean checkShouldCancelPlayerPositionPacket() {
+        if (this.cancelNextPlayerPositionPacket) {
+            this.cancelNextPlayerPositionPacket = false;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     public void cancelTeleportId(final int teleportId) {

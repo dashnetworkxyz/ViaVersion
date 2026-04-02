@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,9 +22,13 @@
  */
 package com.viaversion.viaversion.api.data;
 
+import com.viaversion.viaversion.api.minecraft.RegistryKey;
 import com.viaversion.viaversion.api.minecraft.RegistryType;
 import com.viaversion.viaversion.api.minecraft.TagData;
+import com.viaversion.viaversion.util.Key;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import java.util.List;
+import java.util.Locale;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public interface MappingData {
@@ -140,11 +144,13 @@ public interface MappingData {
 
     @Nullable Mappings getBlockMappings();
 
-    @Nullable Mappings getBlockEntityMappings();
+    @Nullable FullMappings getFullBlockMappings();
 
     @Nullable Mappings getBlockStateMappings();
 
     @Nullable Mappings getSoundMappings();
+
+    @Nullable FullMappings getFullSoundMappings();
 
     @Nullable Mappings getStatisticsMappings();
 
@@ -154,6 +160,8 @@ public interface MappingData {
 
     @Nullable Mappings getPaintingMappings();
 
+    @Nullable FullMappings getBlockEntityMappings();
+
     @Nullable FullMappings getAttributeMappings();
 
     @Nullable FullMappings getEntityMappings();
@@ -162,5 +170,35 @@ public interface MappingData {
 
     @Nullable FullMappings getRecipeSerializerMappings();
 
+    @Nullable FullMappings getSlotDisplayMappings();
+
     @Nullable FullMappings getDataComponentSerializerMappings();
+
+    default @Nullable FullMappings getFullMappings(final MappingType mappingType) {
+        return switch (mappingType) {
+            case ITEM -> getFullItemMappings();
+            case BLOCK -> getFullBlockMappings();
+            case SOUND -> getFullSoundMappings();
+            case ENTITY_TYPE -> getEntityMappings();
+        };
+    }
+
+    /**
+     * Set of block (not block state) ids that had their base type or properties changed.
+     *
+     * @return set of changed block ids, or null if not tracked/none are present
+     */
+    @Nullable IntSet changedBlocks();
+
+    /**
+     * Type of mappings. Currently only relevant for ops writing of generic holder classes and expanded when needed.
+     */
+    enum MappingType implements RegistryKey {
+        ITEM, BLOCK, SOUND, ENTITY_TYPE;
+
+        @Override
+        public Key key() {
+            return Key.of(name().toLowerCase(Locale.ROOT));
+        }
+    }
 }

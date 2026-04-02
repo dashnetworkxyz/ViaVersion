@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,8 +23,10 @@
 package com.viaversion.viaversion.api.minecraft;
 
 import com.viaversion.nbt.tag.Tag;
+import com.viaversion.viaversion.api.minecraft.codec.Ops;
 import com.viaversion.viaversion.api.type.Types;
 import com.viaversion.viaversion.api.type.types.misc.HolderType;
+import com.viaversion.viaversion.util.Key;
 import io.netty.buffer.ByteBuf;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -56,8 +58,8 @@ public record PaintingVariant(int width, int height, String assetId, @Nullable T
             final int width = Types.VAR_INT.readPrimitive(buffer);
             final int height = Types.VAR_INT.readPrimitive(buffer);
             final String assetId = Types.STRING.read(buffer);
-            final Tag title = Types.OPTIONAL_TAG.read(buffer);
-            final Tag author = Types.OPTIONAL_TAG.read(buffer);
+            final Tag title = Types.TRUSTED_OPTIONAL_TAG.read(buffer);
+            final Tag author = Types.TRUSTED_OPTIONAL_TAG.read(buffer);
             return new PaintingVariant(width, height, assetId, title, author);
         }
 
@@ -66,8 +68,24 @@ public record PaintingVariant(int width, int height, String assetId, @Nullable T
             Types.VAR_INT.writePrimitive(buffer, variant.width());
             Types.VAR_INT.writePrimitive(buffer, variant.height());
             Types.STRING.write(buffer, variant.assetId());
-            Types.OPTIONAL_TAG.write(buffer, variant.title());
-            Types.OPTIONAL_TAG.write(buffer, variant.author());
+            Types.TRUSTED_OPTIONAL_TAG.write(buffer, variant.title());
+            Types.TRUSTED_OPTIONAL_TAG.write(buffer, variant.author());
+        }
+
+        @Override
+        public void writeDirect(final Ops ops, final PaintingVariant value) {
+            // Unused, cannot be direct despite having a direct network codec
+            ops.writeMap(map -> map
+                .write("width", Types.INT, value.width())
+                .write("height", Types.INT, value.height())
+                .write("asset_id", Types.IDENTIFIER, Key.of(value.assetId()))
+                .writeOptional("title", Types.TRUSTED_TAG, value.title())
+                .writeOptional("author", Types.TRUSTED_TAG, value.author()));
+        }
+
+        @Override
+        protected Key identifier(final Ops ops, final int id) {
+            return ops.context().registryAccess().registryKey("painting_variant", id);
         }
     };
 }

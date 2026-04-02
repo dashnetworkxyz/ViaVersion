@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 
 public class VelocityViaConfig extends AbstractViaConfig {
@@ -84,6 +85,11 @@ public class VelocityViaConfig extends AbstractViaConfig {
     @Override
     public List<String> getUnsupportedOptions() {
         return BUKKIT_ONLY_OPTIONS;
+    }
+
+    @Override
+    public Set<String> getSectionsWithModifiableKeys() {
+        return Set.of("velocity-servers");
     }
 
     /**

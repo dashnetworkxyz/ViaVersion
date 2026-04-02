@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -271,7 +271,7 @@ public enum EntityTypes1_21_4 implements EntityType {
 
     EntityTypes1_21_4(final EntityType parent) {
         this.parent = parent;
-        this.identifier =  Key.namespaced(name().toLowerCase(Locale.ROOT));
+        this.identifier = Key.namespaced(name().toLowerCase(Locale.ROOT));
     }
 
     EntityTypes1_21_4(final EntityType parent, @Nullable final String identifier) {

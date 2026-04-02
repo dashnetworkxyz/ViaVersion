@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ public class TabCompleteTracker implements StorableObject {
         wrapper.write(Types.BOOLEAN, false);
         final BlockPosition playerLookTarget = Via.getManager().getProviders().get(PlayerLookTargetProvider.class).getPlayerLookTarget(connection);
         wrapper.write(Types.OPTIONAL_POSITION1_8, playerLookTarget);
-        wrapper.scheduleSendToServer(Protocol1_12_2To1_13.class);
+        wrapper.sendToServer(Protocol1_12_2To1_13.class);
         lastTabComplete = null;
     }
 

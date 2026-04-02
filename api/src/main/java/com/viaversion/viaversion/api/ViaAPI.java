@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -123,7 +123,7 @@ public interface ViaAPI<T> {
     boolean isInjected(UUID uuid);
 
     /**
-     * Returns whether Via injected into this player connection. Note that this method may not work on
+     * Returns the injected UserConnection if present. Note that this method may not work on
      * clientside implementations and is generally not recommended to be used. Use {@link ConnectionManager} instead.
      *
      * @param uuid uuid of the player

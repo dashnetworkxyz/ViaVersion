@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -121,7 +121,7 @@ public record AttributeModifiers1_21(AttributeModifier[] modifiers, boolean show
                 modifiers.add(new AttributeModifier(mappedId, modifier.modifier(), modifier.slotType(), modifier.display()));
             }
         }
-        return  new AttributeModifiers1_21(modifiers.toArray(AttributeModifier[]::new), this.showInTooltip);
+        return new AttributeModifiers1_21(modifiers.toArray(AttributeModifier[]::new), this.showInTooltip);
     }
 
     public record AttributeModifier(int attribute, ModifierData modifier, int slotType, Display display) {
@@ -152,8 +152,8 @@ public record AttributeModifiers1_21(AttributeModifier[] modifiers, boolean show
             public void write(final Ops ops, final AttributeModifier value) {
                 final Key attribute = ops.context().registryAccess().attributeModifier(value.attribute);
                 ops.writeMap(map -> map
-                    .write("type", Types.RESOURCE_LOCATION, attribute)
-                    .write("id", Types.RESOURCE_LOCATION, Key.of(value.modifier.id()))
+                    .write("type", Types.IDENTIFIER, attribute)
+                    .write("id", Types.IDENTIFIER, Key.of(value.modifier.id()))
                     .write("amount", Types.DOUBLE, value.modifier.amount)
                     .write("operation", Types.STRING, OPERATION[value.modifier.operation()])
                     .writeOptional("slot", Types.STRING, EQUIPMENT_SLOT_GROUPS[value.slotType()], "any"));
@@ -184,8 +184,8 @@ public record AttributeModifiers1_21(AttributeModifier[] modifiers, boolean show
             public void write(final Ops ops, final AttributeModifier value) {
                 final Key attribute = ops.context().registryAccess().attributeModifier(value.attribute);
                 ops.writeMap(map -> {
-                    map.write("type", Types.RESOURCE_LOCATION, attribute)
-                        .write("id", Types.RESOURCE_LOCATION, Key.of(value.modifier.id()))
+                    map.write("type", Types.IDENTIFIER, attribute)
+                        .write("id", Types.IDENTIFIER, Key.of(value.modifier.id()))
                         .write("amount", Types.DOUBLE, value.modifier.amount)
                         .write("operation", Types.STRING, OPERATION[value.modifier.operation()])
                         .writeOptional("slot", Types.STRING, EQUIPMENT_SLOT_GROUPS[value.slotType()], "any");

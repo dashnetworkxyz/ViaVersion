@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -139,17 +139,7 @@ public interface UserConnection {
     /**
      * Clear stored objects, entity trackers and client worlds.
      */
-    default void clearStoredObjects() {
-        clearStoredObjects(false);
-    }
-
-    /**
-     * Clear stored objects, entity trackers and client worlds.
-     * If cleared for a proxy server switch, some stored objects and tracker data will be retained.
-     *
-     * @param isServerSwitch whether the clear is due to a server switch
-     */
-    void clearStoredObjects(boolean isServerSwitch);
+    void clearStoredObjects();
 
     /**
      * Sends a raw packet to the connection on the current thread.
@@ -204,9 +194,15 @@ public interface UserConnection {
     /**
      * Monitors serverbound packets and returns whether a packet can/should be processed.
      *
+     * @param bytes the number of bytes in the packet
      * @return false if this packet should be cancelled
      */
-    boolean checkServerboundPacket();
+    boolean checkServerboundPacket(int bytes);
+
+    @Deprecated(forRemoval = true)
+    default boolean checkServerboundPacket() {
+        return checkServerboundPacket(0);
+    }
 
     /**
      * Monitors clientbound packets and returns whether a packet can/should be processed.
@@ -219,6 +215,11 @@ public interface UserConnection {
      * @see #checkClientboundPacket()
      * @see #checkServerboundPacket()
      */
+    default boolean checkIncomingPacket(final int bytes) {
+        return isClientSide() ? checkClientboundPacket() : checkServerboundPacket(bytes);
+    }
+
+    @Deprecated(forRemoval = true)
     default boolean checkIncomingPacket() {
         return isClientSide() ? checkClientboundPacket() : checkServerboundPacket();
     }

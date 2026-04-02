@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -88,8 +88,8 @@ public record Enchantments(Int2IntMap enchantments, boolean showInTooltip) imple
         public void write(final Ops ops, final Enchantments value) {
             ops.writeMap(map -> {
                 for (final Int2IntMap.Entry entry : value.enchantments.int2IntEntrySet()) {
-                    final Key key = ops.context().registryAccess().enchantment(entry.getIntKey());
-                    map.write(Types.RESOURCE_LOCATION, key, Types.VAR_INT, entry.getIntValue());
+                    final Key key = ops.context().registryAccess().registryKey("enchantment", entry.getIntKey());
+                    map.write(Types.IDENTIFIER, key, Types.VAR_INT, entry.getIntValue());
                 }
             });
         }

@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaVersion - https://github.com/ViaVersion/ViaVersion
- * Copyright (C) 2016-2025 ViaVersion and contributors
+ * Copyright (C) 2016-2026 ViaVersion and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,23 +22,37 @@
  */
 package com.viaversion.viaversion.api.type.types.misc;
 
+import com.viaversion.viaversion.api.data.MappingData;
 import com.viaversion.viaversion.api.minecraft.SoundEvent;
+import com.viaversion.viaversion.api.minecraft.codec.Ops;
 import com.viaversion.viaversion.api.type.Types;
+import com.viaversion.viaversion.util.Key;
 import io.netty.buffer.ByteBuf;
 
 public final class SoundEventType extends HolderType<SoundEvent> {
 
+    public SoundEventType() {
+        super(MappingData.MappingType.SOUND);
+    }
+
     @Override
     public SoundEvent readDirect(final ByteBuf buffer) {
-        final String resourceLocation = Types.STRING.read(buffer);
+        final String identifier = Types.STRING.read(buffer);
         final Float fixedRange = Types.OPTIONAL_FLOAT.read(buffer);
-        return new SoundEvent(resourceLocation, fixedRange);
+        return new SoundEvent(identifier, fixedRange);
     }
 
     @Override
     public void writeDirect(final ByteBuf buffer, final SoundEvent value) {
         Types.STRING.write(buffer, value.identifier());
         Types.OPTIONAL_FLOAT.write(buffer, value.fixedRange());
+    }
+
+    @Override
+    public void writeDirect(final Ops ops, final SoundEvent object) {
+        ops.writeMap(map -> map
+            .write("sound_id", Types.IDENTIFIER, Key.of(object.identifier()))
+            .writeOptional("range", Types.FLOAT, object.fixedRange()));
     }
 
     public static final class OptionalSoundEventType extends OptionalHolderType<SoundEvent> {
