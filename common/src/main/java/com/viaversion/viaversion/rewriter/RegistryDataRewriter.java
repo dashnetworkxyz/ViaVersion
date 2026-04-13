@@ -24,6 +24,7 @@ import com.viaversion.nbt.tag.Tag;
 import com.viaversion.viaversion.api.connection.UserConnection;
 import com.viaversion.viaversion.api.data.FullMappings;
 import com.viaversion.viaversion.api.data.MappingData;
+import com.viaversion.viaversion.api.data.Mappings;
 import com.viaversion.viaversion.api.data.entity.DimensionData;
 import com.viaversion.viaversion.api.minecraft.RegistryEntry;
 import com.viaversion.viaversion.api.protocol.Protocol;
@@ -58,6 +59,7 @@ public class RegistryDataRewriter implements com.viaversion.viaversion.api.rewri
         this.protocol = protocol;
     }
 
+    @Override
     public void handle(final PacketWrapper wrapper) {
         final String registryKey = Key.stripMinecraftNamespace(wrapper.passthrough(Types.STRING));
         RegistryEntry[] entries = wrapper.read(Types.REGISTRY_ENTRY_ARRAY);
@@ -173,51 +175,119 @@ public class RegistryDataRewriter implements com.viaversion.viaversion.api.rewri
 
     @Override
     public void updateDialog(final UserConnection connection, final CompoundTag tag) {
+        final ComponentRewriter componentRewriter = protocol.getComponentRewriter();
+        if (componentRewriter != null) {
+            componentRewriter.processTag(connection, tag.get("title"));
+            componentRewriter.processTag(connection, tag.get("external_title"));
+        }
+
+        final ListTag<CompoundTag> inputsTag = tag.getListTag("inputs", CompoundTag.class);
+        if (inputsTag != null && componentRewriter != null) {
+            for (final CompoundTag input : inputsTag) {
+                updateTextComponent(connection, input, "label");
+
+                final String type = input.getString("type");
+                if (!Key.equals(type, "single_option")) {
+                    continue;
+                }
+
+                final ListTag<CompoundTag> optionsTag = input.getListTag("options", CompoundTag.class);
+                if (optionsTag != null) {
+                    optionsTag.forEach(option -> updateTextComponent(connection, option, "display"));
+                }
+            }
+        }
+
+        final String type = tag.getString("type");
+        switch (Key.stripMinecraftNamespace(type)) {
+            case "confirmation" -> {
+                updateDialogAction(connection, tag.getCompoundTag("yes"));
+                updateDialogAction(connection, tag.getCompoundTag("no"));
+            }
+            case "dialog_list" -> {
+                updateDialogAction(connection, tag.getCompoundTag("exit_action"));
+
+                final ListTag<CompoundTag> dialogsTag = tag.getListTag("dialogs", CompoundTag.class);
+                if (dialogsTag != null) {
+                    dialogsTag.forEach(dialog -> updateDialog(connection, dialog));
+                } else {
+                    final CompoundTag dialogTag = tag.getCompoundTag("dialogs");
+                    if (dialogTag != null) {
+                        updateDialog(connection, dialogTag); // inlined
+                    }
+                }
+            }
+            case "multi_action" -> {
+                updateDialogAction(connection, tag.getCompoundTag("exit_action"));
+
+                final ListTag<CompoundTag> actionsTag = tag.getListTag("actions", CompoundTag.class);
+                if (actionsTag != null) {
+                    actionsTag.forEach(action -> updateDialogAction(connection, action));
+                }
+            }
+            case "notice" -> updateDialogAction(connection, tag.getCompoundTag("action"));
+            case "server_links" -> updateDialogAction(connection, tag.getCompoundTag("exit_action"));
+        }
+
         final ListTag<CompoundTag> bodiesTag = tag.getListTag("body", CompoundTag.class);
-        if (bodiesTag == null) {
+        if (bodiesTag != null) {
+            bodiesTag.forEach(body -> updateDialogBody(connection, body));
+        } else {
             final CompoundTag bodyTag = tag.getCompoundTag("body");
             if (bodyTag != null) {
                 updateDialogBody(connection, bodyTag); // inlined
             }
-            return;
         }
+    }
 
-        for (final CompoundTag entry : bodiesTag) {
-            updateDialogBody(connection, entry);
+    public void updateDialogAction(final UserConnection connection, final CompoundTag tag) {
+        updateTextComponent(connection, tag, "label");
+        updateTextComponent(connection, tag, "tooltip");
+    }
+
+    protected void updateTextComponent(final UserConnection connection, @Nullable final CompoundTag tag, final String key) {
+        if (tag != null && protocol.getComponentRewriter() != null) {
+            protocol.getComponentRewriter().processTag(connection, tag.get(key));
         }
     }
 
     public void updateDialogBody(final UserConnection connection, final CompoundTag tag) {
         final String type = tag.getString("type");
-        if (!Key.equals(type, "item")) {
-            return;
-        }
-
-        final StringTag itemTag = tag.getStringTag("item");
-        if (itemTag != null) {
-            final String mappedId = protocol.getMappingData().getFullItemMappings().mappedIdentifier(itemTag.getValue());
-            if (mappedId != null) {
-                itemTag.setValue(mappedId);
-            }
-            return;
-        }
-
         final ComponentRewriter componentRewriter = protocol.getComponentRewriter();
-        if (componentRewriter != null) {
-            componentRewriter.handleShowItem(connection, tag.getCompoundTag("item"));
+        if (Key.equals(type, "plain_message")) {
+            if (componentRewriter != null) {
+                componentRewriter.processTag(connection, tag.get("contents"));
+            }
+        } else if (Key.equals(type, "item")) {
+            if (componentRewriter != null) {
+                // Either a plain message or an inlined component
+                final Tag description = tag.get("description");
+                componentRewriter.processTag(connection, description);
+                if (description instanceof final CompoundTag descriptionTag) {
+                    componentRewriter.processTag(connection, descriptionTag.get("contents"));
+                }
+            }
+
+            final StringTag itemIdTag = tag.getStringTag("item");
+            if (itemIdTag != null) {
+                final String mappedId = protocol.getMappingData().getFullItemMappings().mappedIdentifier(itemIdTag.getValue());
+                if (mappedId != null) {
+                    itemIdTag.setValue(mappedId);
+                }
+            } else if (componentRewriter != null) {
+                componentRewriter.handleShowItem(connection, tag.getCompoundTag("item"));
+            }
         }
     }
 
     public void updateEnchantments(final UserConnection connection, final RegistryEntry[] entries) {
-        final List<String> identifiers = new ArrayList<>(entries.length);
         for (final RegistryEntry entry : entries) {
-            identifiers.add(entry.key());
             if (entry.tag() == null) {
                 continue;
             }
 
             final CompoundTag tag = (CompoundTag) entry.tag();
-            if (protocol.getMappingData().getFullItemMappings() != null) {
+            if (!Mappings.isFullIdentity(protocol.getMappingData().getFullItemMappings())) {
                 updateItemList(tag.getListTag("supported_items", StringTag.class));
                 updateItemList(tag.getListTag("primary_items", StringTag.class));
             }
@@ -250,7 +320,7 @@ public class RegistryDataRewriter implements com.viaversion.viaversion.api.rewri
     }
 
     public void updateTrimMaterials(final RegistryEntry[] entries) {
-        if (protocol.getMappingData().getFullItemMappings() == null) {
+        if (Mappings.isFullIdentity(protocol.getMappingData().getFullItemMappings())) {
             return;
         }
 
@@ -312,13 +382,26 @@ public class RegistryDataRewriter implements com.viaversion.viaversion.api.rewri
         }
     }
 
-    private void updateEnchantmentTerm(final CompoundTag term) {
-        if (Key.equals(term.getString("condition"), "entity_properties")) {
+    public void updateEnchantmentTerm(final CompoundTag term) {
+        final String condition = term.getString("condition");
+        if (Key.equals(condition, "all_of") || Key.equals(condition, "any_of")) {
+            final ListTag<CompoundTag> terms = term.getListTag("terms", CompoundTag.class);
+            if (terms != null) {
+                for (final CompoundTag childTerm : terms) {
+                    updateEnchantmentTerm(childTerm);
+                }
+            }
+        } else if (Key.equals(condition, "inverted")) {
+            final CompoundTag childTerm = term.getCompoundTag("term");
+            if (childTerm != null) {
+                updateEnchantmentTerm(childTerm);
+            }
+        } else if (Key.equals(condition, "entity_properties")) {
             final CompoundTag predicate = term.getCompoundTag("predicate");
             if (predicate != null) {
                 updateType(predicate, "type", protocol.getMappingData().getEntityMappings());
             }
-        } else if (Key.equals(term.getString("condition"), "block_state_property")) {
+        } else if (Key.equals(condition, "block_state_property")) {
             updateType(term, "block", protocol.getMappingData().getFullBlockMappings());
         }
     }
@@ -364,7 +447,7 @@ public class RegistryDataRewriter implements com.viaversion.viaversion.api.rewri
 
     protected void updateType(final CompoundTag tag, final String key, final FullMappings mappings) {
         final Tag typeTag = tag.get(key);
-        if (typeTag == null || mappings == null) {
+        if (typeTag == null || Mappings.isFullIdentity(mappings)) {
             return;
         }
 
@@ -424,5 +507,10 @@ public class RegistryDataRewriter implements com.viaversion.viaversion.api.rewri
     @Override
     public boolean shouldRemoveRegistry(final String registryKey) {
         return this.toRemove.contains(Key.stripMinecraftNamespace(registryKey));
+    }
+
+    @Override
+    public boolean hasRegistriesToRemove() {
+        return !this.toRemove.isEmpty();
     }
 }
