@@ -245,7 +245,8 @@ public class ViaVersionPlugin extends JavaPlugin implements ViaPlatform<Player> 
             final String className = Bukkit.getServer().getClass().getName();
             final String craftBukkitPackage = className.substring(0, className.lastIndexOf('.'));
             Class.forName(craftBukkitPackage + ".entity.CraftPlayer").getMethod("addChannel", String.class).invoke(player, channel);
-        } catch (final IllegalAccessException | InvocationTargetException | NoSuchMethodException | ClassNotFoundException e) {
+        } catch (final IllegalAccessException | InvocationTargetException | NoSuchMethodException |
+                       ClassNotFoundException e) {
             getLogger().log(Level.SEVERE, "Failed to register custom payload channel " + channel + " for player " + player.getName(), e);
             return;
         }

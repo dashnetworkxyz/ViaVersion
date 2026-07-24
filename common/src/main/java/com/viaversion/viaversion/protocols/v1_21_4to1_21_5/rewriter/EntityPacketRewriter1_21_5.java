@@ -36,6 +36,7 @@ import com.viaversion.viaversion.protocols.v1_21to1_21_2.packet.ClientboundPacke
 import com.viaversion.viaversion.protocols.v1_21to1_21_2.packet.ClientboundPackets1_21_2;
 import com.viaversion.viaversion.rewriter.EntityRewriter;
 import com.viaversion.viaversion.rewriter.entitydata.EntityDataHandlerEvent;
+import com.viaversion.viaversion.util.UUIDUtil;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -54,7 +55,7 @@ public final class EntityPacketRewriter1_21_5 extends EntityRewriter<Clientbound
         // No more special experience orb add packet
         protocol.registerClientbound(ClientboundPackets1_21_2.ADD_EXPERIENCE_ORB, ClientboundPackets1_21_5.ADD_ENTITY, wrapper -> {
             wrapper.passthrough(Types.VAR_INT); // Entity ID
-            wrapper.write(Types.UUID, UUID.randomUUID()); // UUID...
+            wrapper.write(Types.UUID, UUIDUtil.randomUUID()); // UUID...
             wrapper.write(Types.VAR_INT, EntityTypes1_21_5.EXPERIENCE_ORB.getId()); // Type
             wrapper.passthrough(Types.DOUBLE); // X
             wrapper.passthrough(Types.DOUBLE); // Y
@@ -86,6 +87,19 @@ public final class EntityPacketRewriter1_21_5 extends EntityRewriter<Clientbound
 
         protocol.appendClientbound(ClientboundPackets1_21_2.LOGIN, wrapper -> {
             wrapper.user().get(MessageIndexStorage.class).setIndex(0);
+        });
+
+        protocol.registerClientbound(ClientboundPackets1_21_2.UPDATE_MOB_EFFECT, wrapper -> {
+            // Add blending to nausea effect
+            wrapper.passthrough(Types.VAR_INT); // Entity ID
+            final int effectId = wrapper.passthrough(Types.VAR_INT); // Effect ID
+            wrapper.passthrough(Types.VAR_INT); // Amplifier
+            wrapper.passthrough(Types.VAR_INT); // Duration
+            byte flags = wrapper.read(Types.BYTE); // Flags
+            if (effectId == 8) { // Nausea
+                flags |= 0x08; // blend
+            }
+            wrapper.write(Types.BYTE, flags);
         });
 
         protocol.replaceClientbound(ClientboundPackets1_21_2.SET_PLAYER_TEAM, wrapper -> {

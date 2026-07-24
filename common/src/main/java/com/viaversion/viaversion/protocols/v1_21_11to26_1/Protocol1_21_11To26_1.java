@@ -66,6 +66,7 @@ import com.viaversion.viaversion.rewriter.TagRewriter;
 import com.viaversion.viaversion.rewriter.block.BlockRewriter1_21_5;
 import com.viaversion.viaversion.rewriter.text.NBTComponentRewriter;
 import com.viaversion.viaversion.util.Key;
+import com.viaversion.viaversion.util.MathUtil;
 import java.util.Map;
 
 import static com.viaversion.viaversion.util.ProtocolUtil.packetTypeMap;
@@ -93,7 +94,10 @@ public final class Protocol1_21_11To26_1 extends AbstractProtocol<ClientboundPac
         appendClientbound(ClientboundConfigurationPackets1_21_9.FINISH_CONFIGURATION, wrapper -> {
             final PacketWrapper clocksPacket = wrapper.create(ClientboundConfigurationPackets1_21_9.REGISTRY_DATA);
             clocksPacket.write(Types.STRING, "world_clock");
-            clocksPacket.write(Types.REGISTRY_ENTRY_ARRAY, new RegistryEntry[]{new RegistryEntry("minecraft:overworld", new CompoundTag())});
+            clocksPacket.write(Types.REGISTRY_ENTRY_ARRAY, new RegistryEntry[]{
+                new RegistryEntry("minecraft:overworld", new CompoundTag()),
+                new RegistryEntry("minecraft:the_end", new CompoundTag())
+            });
             clocksPacket.send(Protocol1_21_11To26_1.class);
 
             sendSoundVariants(wrapper, "cat_sound_variant", MAPPINGS.catSoundVariants());
@@ -141,16 +145,19 @@ public final class Protocol1_21_11To26_1 extends AbstractProtocol<ClientboundPac
         registryDataRewriter.addHandler("dimension_type", (key, tag) -> {
             tag.putBoolean("has_ender_dragon_fight", Key.equals(key, "the_end"));
 
-            final CompoundTag attributes = tag.getCompoundTag("attributes");
-            if (attributes != null) {
-                final int ambientLightColor = switch (Key.stripMinecraftNamespace(key)) {
-                    case "the_end" -> -12630209;
-                    case "the_nether" -> -13621215;
-                    case "overworld" -> -16119286;
-                    default -> -16777216;
-                };
-                attributes.putInt("visual/ambient_light_color", ambientLightColor);
+            CompoundTag attributes = tag.getCompoundTag("attributes");
+            if (attributes == null) {
+                attributes = new CompoundTag();
+                tag.put("attributes", attributes);
             }
+
+            final int ambientLightColor = switch (Key.stripMinecraftNamespace(key)) {
+                case "the_end" -> -12630209;
+                case "the_nether" -> -13621215;
+                case "overworld" -> -16119286;
+                default -> ambientLightColor(tag.getFloat("ambient_light", 0F));
+            };
+            attributes.putInt("visual/ambient_light_color", ambientLightColor);
         });
         registerClientbound(ClientboundPackets1_21_11.SET_TIME, wrapper -> {
             wrapper.passthrough(Types.LONG); // Game time
@@ -198,6 +205,9 @@ public final class Protocol1_21_11To26_1 extends AbstractProtocol<ClientboundPac
         spearDamageType.putString("scaling", "when_caused_by_living_non_player");
         registryDataRewriter.addEntries("damage_type", new RegistryEntry("spear", spearDamageType));
 
+        final CompoundTag temperateChicken = new CompoundTag();
+        temperateChicken.putString("asset_id", "entity/chicken/chicken_temperate");
+        temperateChicken.putString("baby_asset_id", "entity/chicken/chicken_temperate_baby");
         final CompoundTag coldChicken = new CompoundTag();
         coldChicken.putString("asset_id", "entity/chicken/chicken_cold");
         coldChicken.putString("baby_asset_id", "entity/chicken/chicken_cold_baby");
@@ -205,7 +215,7 @@ public final class Protocol1_21_11To26_1 extends AbstractProtocol<ClientboundPac
         final CompoundTag warmChicken = new CompoundTag();
         warmChicken.putString("asset_id", "entity/chicken/chicken_warm");
         warmChicken.putString("baby_asset_id", "entity/chicken/chicken_warm_baby");
-        registryDataRewriter.addEntries("chicken_variant", new RegistryEntry("cold", coldChicken), new RegistryEntry("warm", warmChicken));
+        registryDataRewriter.addEntries("chicken_variant", new RegistryEntry("temperate", temperateChicken), new RegistryEntry("cold", coldChicken), new RegistryEntry("warm", warmChicken));
 
         final CompoundTag ponderGoatHornInstrument = new CompoundTag();
         final CompoundTag ponderGoatHornDescription = new CompoundTag();
@@ -214,7 +224,7 @@ public final class Protocol1_21_11To26_1 extends AbstractProtocol<ClientboundPac
         ponderGoatHornInstrument.putString("sound_event", "item.goat_horn.sound.0");
         ponderGoatHornInstrument.putFloat("use_duration", 7F);
         ponderGoatHornInstrument.putFloat("range", 256F);
-        registryDataRewriter.addEntries("instrument", new RegistryEntry("spear", ponderGoatHornInstrument));
+        registryDataRewriter.addEntries("instrument", new RegistryEntry("ponder_goat_horn", ponderGoatHornInstrument));
 
         addJukeboxPlayables("11", "13", "5", "blocks", "cat", "chirp", "far", "mall", "mellohi", "otherside", "pigstep", "relic", "stal", "strad", "wait", "ward", "creator", "creator_music_box", "lava_chicken", "tears", "precipice");
         addTrimMaterials("quartz", "iron", "netherite", "redstone", "copper", "gold", "emerald", "diamond", "lapis", "amethyst", "resin");
@@ -233,15 +243,19 @@ public final class Protocol1_21_11To26_1 extends AbstractProtocol<ClientboundPac
 
     private void addJukeboxPlayables(final String... songs) {
         for (final String song : songs) {
-            final CompoundTag songTag = new CompoundTag();
-            final CompoundTag songDescription = new CompoundTag();
-            songDescription.putString("translate", "jukebox_song.minecraft." + song);
-            songTag.put("description", songDescription);
-            songTag.putString("sound_event", "music_disc." + song);
-            songTag.putFloat("length_in_seconds", 175F);
-            songTag.putInt("comparator_output", 10);
-            registryDataRewriter.addEntries("jukebox_song", new RegistryEntry(song, songTag));
+            registryDataRewriter.addEntries("jukebox_song", createJukeboxPlayableEntry(song));
         }
+    }
+
+    public static RegistryEntry createJukeboxPlayableEntry(final String song) {
+        final CompoundTag songTag = new CompoundTag();
+        final CompoundTag songDescription = new CompoundTag();
+        songDescription.putString("translate", "jukebox_song.minecraft." + song);
+        songTag.put("description", songDescription);
+        songTag.putString("sound_event", "music_disc." + song);
+        songTag.putFloat("length_in_seconds", 175F);
+        songTag.putInt("comparator_output", 10);
+        return new RegistryEntry(song, songTag);
     }
 
     private void swapAffixAndAddAssetId(final String registryKey, final String affix) {
@@ -261,6 +275,12 @@ public final class Protocol1_21_11To26_1 extends AbstractProtocol<ClientboundPac
         final StringTag assetIdTag = tag.getStringTag("asset_id");
         final String assetId = assetIdTag.getValue();
         assetIdTag.setValue(assetId.replace(key + "/", key + "/" + key + "_"));
+    }
+
+    private int ambientLightColor(final float ambientLight) {
+        // Interpolate between the overworld (ambient_light=0) and full white
+        final int value = MathUtil.clamp(Math.round(10 + ambientLight * 245), 10, 255);
+        return 0xFF000000 | value << 16 | value << 8 | value;
     }
 
     private void swapEntityNameAffix(final String key, final CompoundTag tag) {

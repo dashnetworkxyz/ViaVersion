@@ -24,6 +24,8 @@ package com.viaversion.viaversion.api.data;
 
 import com.viaversion.nbt.tag.CompoundTag;
 import com.viaversion.nbt.tag.IntArrayTag;
+import com.viaversion.nbt.tag.ListTag;
+import com.viaversion.nbt.tag.StringTag;
 import com.viaversion.nbt.tag.Tag;
 import com.viaversion.viaversion.api.Via;
 import com.viaversion.viaversion.api.data.MappingDataLoader.IdentifiersPair;
@@ -35,7 +37,9 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class MappingDataBase implements MappingData {
@@ -63,6 +67,7 @@ public class MappingDataBase implements MappingData {
      * Set of block ids that have had type or property changes.
      */
     protected IntSet changedBlocks;
+    protected Set<String> changedEnvironmentAttributes;
 
     public MappingDataBase(final String unmappedVersion, final String mappedVersion) {
         this.unmappedVersion = unmappedVersion;
@@ -118,11 +123,17 @@ public class MappingDataBase implements MappingData {
             loadTags(RegistryType.ITEM, tagsTag);
             loadTags(RegistryType.BLOCK, tagsTag);
             loadTags(RegistryType.ENTITY, tagsTag);
+            loadTags(RegistryType.FLUID, tagsTag);
         }
 
         final IntArrayTag changedBlocks = data.getIntArrayTag("changed_blocks");
         if (changedBlocks != null) {
             this.changedBlocks = new IntOpenHashSet(changedBlocks.getValue());
+        }
+
+        final ListTag<StringTag> changedEnvironmentAttributes = data.getListTag("changed_environment_attributes", StringTag.class);
+        if (changedEnvironmentAttributes != null) {
+            this.changedEnvironmentAttributes = changedEnvironmentAttributes.stream().map(StringTag::getValue).collect(Collectors.toSet());
         }
 
         loadExtras(data);
@@ -167,6 +178,10 @@ public class MappingDataBase implements MappingData {
         if (mappings == null) {
             mappings = new IdentityMappings(identifiersPair.unmapped().size(), identifiersPair.mapped().size());
         }
+        return createFullMappings(identifiersPair, mappings);
+    }
+
+    protected FullMappings createFullMappings(final IdentifiersPair identifiersPair, final Mappings mappings) {
         return FullMappingsBase.of(identifiersPair, mappings);
     }
 
@@ -347,6 +362,11 @@ public class MappingDataBase implements MappingData {
     @Override
     public @Nullable IntSet changedBlocks() {
         return changedBlocks;
+    }
+
+    @Override
+    public @Nullable Set<String> changedEnvironmentAttributes() {
+        return changedEnvironmentAttributes;
     }
 
     protected Logger getLogger() {
