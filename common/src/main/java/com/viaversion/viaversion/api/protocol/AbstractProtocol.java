@@ -42,12 +42,14 @@ import com.viaversion.viaversion.data.entity.EntityTrackerBase;
 import com.viaversion.viaversion.data.item.ItemHasherBase;
 import com.viaversion.viaversion.exception.CancelException;
 import com.viaversion.viaversion.exception.InformativeException;
+import com.viaversion.viaversion.protocol.ProtocolManagerImpl;
 import com.viaversion.viaversion.protocol.shared_registration.SharedRegistrations;
 import com.viaversion.viaversion.rewriter.RecipeDisplayRewriter;
 import com.viaversion.viaversion.util.ProtocolLogger;
 import com.viaversion.viaversion.util.ProtocolUtil;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.logging.Level;
@@ -73,11 +75,11 @@ public abstract class AbstractProtocol<CU extends ClientboundPacketType, CM exte
     protected final PacketMappings clientboundMappings;
     protected final PacketMappings serverboundMappings;
     private final Map<Class<?>, Object> storedObjects = new HashMap<>();
+    private final int index = ProtocolManagerImpl.PROTOCOL_INDEX.getAndIncrement();
     private boolean initialized;
     private ProtocolLogger logger;
     private ProtocolVersion serverVersion;
     private ProtocolVersion clientVersion;
-    private int index = -1;
 
     @Deprecated
     protected AbstractProtocol() {
@@ -231,6 +233,7 @@ public abstract class AbstractProtocol<CU extends ClientboundPacketType, CM exte
         callOnMappingDataLoaded(getEntityRewriter());
         callOnMappingDataLoaded(getItemRewriter());
         callOnMappingDataLoaded(getTagRewriter());
+        callOnMappingDataLoaded(getBlockRewriter());
     }
 
     private void callRegister(@Nullable Rewriter<?> rewriter) {
@@ -281,12 +284,7 @@ public abstract class AbstractProtocol<CU extends ClientboundPacketType, CM exte
         return new ProtocolStorablesBase();
     }
 
-    /**
-     * Returns the server protocol version for this protocol,
-     * or null if not set (e.g. for base protocols).
-     *
-     * @return the server protocol version
-     */
+    @Override
     public @Nullable ProtocolVersion getServerVersion() {
         return serverVersion;
     }
@@ -301,12 +299,7 @@ public abstract class AbstractProtocol<CU extends ClientboundPacketType, CM exte
         this.serverVersion = serverVersion;
     }
 
-    /**
-     * Returns the client protocol version for this protocol,
-     * or null if not set (e.g. for base protocols).
-     *
-     * @return the client protocol version for this protocol
-     */
+    @Override
     public @Nullable ProtocolVersion getClientVersion() {
         return clientVersion;
     }
@@ -324,16 +317,6 @@ public abstract class AbstractProtocol<CU extends ClientboundPacketType, CM exte
     @Override
     public int index() {
         return index;
-    }
-
-    /**
-     * Sets the protocol index for array-based lookups of per-connection data.
-     * Called by the protocol manager during registration.
-     *
-     * @param index the protocol index
-     */
-    public void setIndex(final int index) {
-        this.index = index;
     }
 
     // ---------------------------------------------------------------------------------

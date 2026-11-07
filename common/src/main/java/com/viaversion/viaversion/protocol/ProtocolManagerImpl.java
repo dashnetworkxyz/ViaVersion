@@ -91,6 +91,7 @@ import com.viaversion.viaversion.protocols.v1_9_1to1_9_3.Protocol1_9_1To1_9_3;
 import com.viaversion.viaversion.protocols.v1_9_3to1_10.Protocol1_9_3To1_10;
 import com.viaversion.viaversion.protocols.v1_9to1_9_1.Protocol1_9To1_9_1;
 import com.viaversion.viaversion.protocols.v26_1to26_2.Protocol26_1To26_2;
+import com.viaversion.viaversion.protocols.v26_2to26_3.Protocol26_2To26_3;
 import com.viaversion.viaversion.util.MathUtil;
 import com.viaversion.viaversion.util.Pair;
 import io.netty.buffer.ByteBuf;
@@ -121,6 +122,7 @@ import java.util.logging.Level;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class ProtocolManagerImpl implements ProtocolManager {
+    public static final AtomicInteger PROTOCOL_INDEX = new AtomicInteger();
     private static final InitialBaseProtocol BASE_PROTOCOL = new InitialBaseProtocol();
 
     // Input Version -> Output Version & Protocol (Allows fast lookup)
@@ -130,7 +132,6 @@ public class ProtocolManagerImpl implements ProtocolManager {
     private final Set<ProtocolVersion> supportedVersions = new HashSet<>();
     private final List<Pair<Range<ProtocolVersion>, Protocol>> serverboundBaseProtocols = Lists.newCopyOnWriteArrayList();
     private final List<Pair<Range<ProtocolVersion>, Protocol>> clientboundBaseProtocols = Lists.newCopyOnWriteArrayList();
-    private final AtomicInteger protocolIndex = new AtomicInteger();
 
     private final ReadWriteLock mappingLoaderLock = new ReentrantReadWriteLock();
     private Map<Class<? extends Protocol>, CompletableFuture<Void>> mappingLoaderFutures = new Reference2ObjectOpenHashMap<>();
@@ -155,7 +156,6 @@ public class ProtocolManagerImpl implements ProtocolManager {
 
     public void registerProtocols() {
         // Base Protocol
-        BASE_PROTOCOL.setIndex(protocolIndex.getAndIncrement());
         BASE_PROTOCOL.initialize();
         BASE_PROTOCOL.register(Via.getManager().getProviders());
         registerBaseProtocol(Direction.CLIENTBOUND, new ClientboundBaseProtocol1_7(), Range.closedOpen(ProtocolVersion.v1_7_2, ProtocolVersion.v1_16));
@@ -223,6 +223,7 @@ public class ProtocolManagerImpl implements ProtocolManager {
 
         registerProtocol(new Protocol1_21_11To26_1(), ProtocolVersion.v26_1, ProtocolVersion.v1_21_11);
         registerProtocol(new Protocol26_1To26_2(), ProtocolVersion.v26_2, ProtocolVersion.v26_1);
+        registerProtocol(new Protocol26_2To26_3(), ProtocolVersion.v26_3, ProtocolVersion.v26_2);
     }
 
     @Override
@@ -234,7 +235,6 @@ public class ProtocolManagerImpl implements ProtocolManager {
     public void registerProtocol(Protocol protocol, List<ProtocolVersion> supportedClientVersion, ProtocolVersion serverVersion) {
         // Set the server version and index on AbstractProtocol instances before initialization
         if (protocol instanceof AbstractProtocol<?, ?, ?, ?> abstractProtocol) {
-            abstractProtocol.setIndex(protocolIndex.getAndIncrement());
             abstractProtocol.setServerVersion(serverVersion);
             abstractProtocol.setClientVersion(supportedClientVersion.stream().max(ProtocolVersion::compareTo).orElseThrow());
         }
@@ -286,10 +286,6 @@ public class ProtocolManagerImpl implements ProtocolManager {
         Preconditions.checkArgument(lower == null || lower.getVersionType() != VersionType.SPECIAL, "Base protocol versions cannot contain a special version");
         Preconditions.checkArgument(upper == null || upper.getVersionType() != VersionType.SPECIAL, "Base protocol versions cannot contain a special version");
 
-        if (baseProtocol instanceof AbstractProtocol<?, ?, ?, ?> abstractProtocol) {
-            abstractProtocol.setIndex(protocolIndex.getAndIncrement());
-        }
-
         baseProtocol.initialize();
 
         if (direction == Direction.SERVERBOUND) {
@@ -333,7 +329,9 @@ public class ProtocolManagerImpl implements ProtocolManager {
         List<ProtocolPathEntry> path = calculateProtocolPath(clientVersion, serverVersion);
         if (path == null) {
             // Also cache that there is no path
-            pathCache.put(protocolKey, List.of());
+            if (clientVersion.isKnown() && serverVersion.isKnown()) {
+                pathCache.put(protocolKey, List.of());
+            }
             return null;
         }
 
@@ -595,7 +593,7 @@ public class ProtocolManagerImpl implements ProtocolManager {
 
     @Override
     public int registeredProtocolCount() {
-        return protocolIndex.get();
+        return PROTOCOL_INDEX.get();
     }
 
     public void shutdownLoaderExecutor() {

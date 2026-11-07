@@ -198,7 +198,7 @@ public class StructuredItemRewriter<C extends ClientboundPacketType, S extends S
     protected boolean isFirstServerbound(final UserConnection connection) {
         // Only actually cache the original item once in the final clientbound/first serverbound protocol
         for (final Protocol<?, ?, ?, ?> protocol : connection.getProtocolInfo().getPipeline().pipes()) {
-            if (connection.getItemHasher(protocol) instanceof ItemHasherBase) {
+            if (!protocol.isBaseProtocol() && connection.getItemHasher(protocol) instanceof ItemHasherBase) {
                 return protocol.getClass() == this.protocol.getClass();
             }
         }
@@ -212,13 +212,24 @@ public class StructuredItemRewriter<C extends ClientboundPacketType, S extends S
             return null;
         }
 
+        final MappingData mappingData = protocol.getMappingData();
+        final FullMappings dataComponentMappings = mappingData != null ? mappingData.getDataComponentSerializerMappings() : null;
+        if (dataComponentMappings == null) {
+            return null;
+        }
+
+        final int dataComponentTypes = Math.max(dataComponentMappings.size(), dataComponentMappings.mappedSize());
         final OriginalHashedItem hashedItem = new OriginalHashedItem(idTag.asInt(), item.amount(), backupTagName);
         try {
             for (final Map.Entry<String, Tag> entry : originalHashes.entrySet()) {
                 if (entry.getValue() instanceof IntTag hashTag) {
                     final String key = entry.getKey();
                     if (!key.equals("id")) {
-                        hashedItem.dataHashesById().put(Integer.parseInt(key), hashTag.asInt());
+                        final int id = Integer.parseInt(key);
+                        if (id < 0 || id >= dataComponentTypes) {
+                            return null;
+                        }
+                        hashedItem.dataHashesById().put(id, hashTag.asInt());
                     }
                 }
             }
@@ -229,6 +240,9 @@ public class StructuredItemRewriter<C extends ClientboundPacketType, S extends S
         final IntArrayTag removedTag = originalHashes.getIntArrayTag("removed");
         if (removedTag != null) {
             for (final int id : removedTag.getValue()) {
+                if (id < 0 || id >= dataComponentTypes) {
+                    return null;
+                }
                 hashedItem.removedDataIds().add(id);
             }
         }
@@ -397,11 +411,11 @@ public class StructuredItemRewriter<C extends ClientboundPacketType, S extends S
     /**
      * Stores inconvertible data in a backup tag. Called before data component modification to the item.
      *
-     * @param connection    user connection
-     * @param item          item to save data for
-     * @param dataContainer item data container
+     * @param connection user connection
+     * @param item       item to save data for
+     * @param container  item data container
      */
-    protected void backupInconvertibleData(final UserConnection connection, final Item item, final StructuredDataContainer dataContainer, final CompoundTag backupTag) {
+    protected void backupInconvertibleData(final UserConnection connection, final Item item, final StructuredDataContainer container, final CompoundTag backupTag) {
     }
 
     /**
@@ -423,11 +437,11 @@ public class StructuredItemRewriter<C extends ClientboundPacketType, S extends S
             if (customName != null) {
                 container.set(StructuredDataKey.CUSTOM_NAME, customName);
             }
+        }
 
-            final Tag itemName = removeBackupTag(customData, "item_name");
-            if (itemName != null) {
-                container.set(StructuredDataKey.ITEM_NAME, itemName);
-            }
+        final Tag itemName = removeBackupTag(customData, "item_name");
+        if (itemName != null) {
+            container.set(StructuredDataKey.ITEM_NAME, itemName);
         }
     }
 

@@ -22,18 +22,34 @@
  */
 package com.viaversion.viaversion.api.minecraft.item.data;
 
-import com.viaversion.viaversion.api.type.TransformingType;
+import com.viaversion.viaversion.api.minecraft.ResolvableFloat;
+import com.viaversion.viaversion.api.minecraft.ResolvableInt;
+import com.viaversion.viaversion.api.minecraft.codec.Ops;
 import com.viaversion.viaversion.api.type.Type;
 import com.viaversion.viaversion.api.type.Types;
-import com.viaversion.viaversion.api.type.types.EitherType;
-import com.viaversion.viaversion.util.Either;
+import io.netty.buffer.ByteBuf;
 
-/**
- * 1.21.11-only damage type.
- *
- * @param id registry int or string id
- */
-public record DamageType(Either<Integer, String> id) {
+public record BrewingFuel(ResolvableInt uses, ResolvableFloat speedMultiplier) {
 
-    public static final Type<DamageType> TYPE1_21_11 = TransformingType.of(new EitherType<>(Types.VAR_INT, Types.STRING), DamageType.class, DamageType::new, DamageType::id);
+    public static final Type<BrewingFuel> TYPE = new Type<>(BrewingFuel.class) {
+        @Override
+        public BrewingFuel read(final ByteBuf buffer) {
+            final ResolvableInt uses = Types.RESOLVABLE_INT.read(buffer);
+            final ResolvableFloat speedMultiplier = Types.RESOLVABLE_FLOAT.read(buffer);
+            return new BrewingFuel(uses, speedMultiplier);
+        }
+
+        @Override
+        public void write(final ByteBuf buffer, final BrewingFuel value) {
+            Types.RESOLVABLE_INT.write(buffer, value.uses);
+            Types.RESOLVABLE_FLOAT.write(buffer, value.speedMultiplier);
+        }
+
+        @Override
+        public void write(final Ops ops, final BrewingFuel value) {
+            ops.writeMap(map -> map
+                .write("uses", Types.RESOLVABLE_INT, value.uses)
+                .write("speed_multiplier", Types.RESOLVABLE_FLOAT, value.speedMultiplier));
+        }
+    };
 }

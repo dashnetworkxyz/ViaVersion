@@ -171,7 +171,7 @@ public abstract class ComponentRewriterBase<C extends ClientboundPacketType> imp
                 passthroughAndProcess(wrapper); // Suffix
                 wrapper.passthrough(Types.VAR_INT); // Nametag visibility
                 wrapper.passthrough(Types.VAR_INT); // Collision rule
-                wrapper.passthrough(Types.OPTIONAL_VAR_INT); // Color
+                wrapper.passthrough(Types.BOOL_OPTIONAL_VAR_INT); // Color
                 wrapper.passthrough(Types.BYTE); // Flags
             }
         });
@@ -418,6 +418,35 @@ public abstract class ComponentRewriterBase<C extends ClientboundPacketType> imp
         // Entity / block entity types
         handleTypedEntityData(componentsTag, "entity_data", protocol.getMappingData().getEntityMappings());
         handleTypedEntityData(componentsTag, "block_entity_data", protocol.getMappingData().getBlockEntityMappings());
+
+        handleTooltipDisplay(componentsTag);
+    }
+
+    private void handleTooltipDisplay(final CompoundTag componentsTag) {
+        final FullMappings mappings = protocol.getMappingData().getDataComponentSerializerMappings();
+        if (Mappings.isFullIdentity(mappings)) {
+            return;
+        }
+
+        final CompoundTag tooltipDisplay = TagUtil.getNamespacedCompoundTag(componentsTag, "tooltip_display");
+        if (tooltipDisplay == null) {
+            return;
+        }
+
+        final ListTag<StringTag> hiddenComponents = tooltipDisplay.getListTag("hidden_components", StringTag.class);
+        if (hiddenComponents == null) {
+            return;
+        }
+
+        // Remap or remove data component types that have been renamed or removed
+        hiddenComponents.getValue().removeIf(componentTag -> {
+            final String mappedId = mappings.mappedIdentifier(componentTag.getValue());
+            if (mappedId != null) {
+                componentTag.setValue(mappedId);
+                return false;
+            }
+            return true;
+        });
     }
 
     private void handleSoundEventTag(@Nullable final Tag soundEventTag, final FullMappings soundMappings) {
